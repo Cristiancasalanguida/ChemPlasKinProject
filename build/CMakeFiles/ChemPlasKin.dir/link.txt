@@ -1,0 +1,1 @@
+/usr/bin/c++  -O3 -rdynamic CMakeFiles/ChemPlasKin.dir/src/master.cpp.o -o ChemPlasKin   -L/home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/../cantera/build/lib  -Wl,-rpath,/home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/../cantera/build/lib -lcantera_shared -lstdc++fs 
