@@ -1,0 +1,127 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|     ____ _                    ____  _           _  ___                      |
+|    / ___| |__   ___ _ __ ___ |  _ \| | __ _ ___| |/ (_)_ __                 |
+|   | |   | '_ \ / _ \ '_ ` _ \| |_) | |/ _` / __| ' /| | '_ \                |
+|   | |___| | | |  __/ | | | | |  __/| | (_| \__ \ . \| | | | |               |
+|    \____|_| |_|\___|_| |_| |_|_|   |_|\__,_|___/_|\_\_|_| |_|               |
+|                                                                             |
+|   A Freeware for Unified Gas-Plasma Kinetics Simulation                     |
+|   Version:      1.2 (February 2026)                                         |
+|   License:      GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1              |
+|   Author:       Xiao Shao                                                   |
+|   Organization: King Abdullah University of Science and Technology (KAUST)  |
+|   Contact:      xiao.shao@kaust.edu.sa                                      |
+|-----------------------------------------------------------------------------|
+|   Reactor Network module made by: Cristian Casalanguida                     |
+|   Contact:      cristian.casalanguida@studenti.polito.it                    |
+\*---------------------------------------------------------------------------*/
+
+// ================  Global Initial Conditions  ================
+//
+// These are global defaults for every reactor zone.
+// Per-reactor overrides go in the crnDict under each reactor's block.
+
+Temperature      300;        // [REQUIRED] Default initial gas temperature [K].
+                             //   Overrideable per reactor via crnDict 'initialTemperature'.
+
+Pressure         101325;     // [REQUIRED] Default initial pressure [Pa].
+                             //   Overrideable per reactor via crnDict 'pressure'.
+
+CP_or_CV         CP;         // [REQUIRED] Thermodynamic constraint for ChemPlasReactor ODE.
+                             //   CP: constant pressure (isobaric, open reactor).
+                             //   CV: constant volume  (isochoric, closed reactor).
+                             //   If heatLoss = yes, CV is forced during discharge
+                             //   and switched to CP after isentropic expansion.
+
+nonThermal       no;         // [REQUIRED] yes: hold temperature constant (no thermal feedback).
+                             //   Useful for kinetics-only studies at fixed T.
+
+plasmaHeatModel  Flitti;     // [REQUIRED] Model for converting electron power to gas heating.
+                             //   'default': direct Joule heating fraction.
+                             //   'Flitti': Flitti & Pancheshnyi (2009) model.
+
+heatLoss         no;         // [REQUIRED] yes: apply isentropic heat loss after each pulse.
+                             //   When on: reactor runs CV during discharge, then isentropic
+                             //   expansion restores pressure P0 at t_pulse + 100 ns.
+                             //   Requires 'C0' to be set.
+
+C0               1.975e7;    // [REQUIRED if heatLoss = yes] Heat loss coefficient [m^-2].
+                             //   C0 = 1 / r_discharge^2 in the Adamovich/Macheret model.
+                             //   Example: r_dis = 0.7 mm → C0 ≈ 2.04e6 m^-2.
+
+electronDens     1e4;        // [REQUIRED] Default initial electron number density [#/cm^3].
+                             //   Overrideable per reactor via crnDict 'initialElectronDensity'.
+                             //   If 'E' (electron) mole fraction is specified in Mixture,
+                             //   that takes precedence over electronDens.
+
+inertSpecies     N2;         // [REQUIRED] Name of the inert background species (as in YAML).
+                             //   Used as a fill species for composition normalisation.
+
+// Default mixture composition (mole fractions).
+// Used for all reactors that do not specify 'composition' in crnDict.
+Mixture
+{
+    H2     0.1667;           // Adjust species names to match your mechanism YAML.
+    O2     0.0833;
+    N2     0.75;
+}
+
+fuelName         H;          // [REQUIRED] Element symbol for fuel tracking (e.g., H for H2 fuel).
+                             //   Used to build yFuel map: elementalMassFraction(fuelName).
+                             //   Must be an element name in the Cantera mechanism.
+
+oxName           O;          // [REQUIRED] Element symbol for oxidizer tracking (e.g., O for O2).
+                             //   Used to build yOx map: elementalMassFraction(oxName).
+
+
+// ================  Plasma / Boltzmann Solver Parameters  ================
+
+BoltzmannSpecies   H2, O2, N2, H, O, H2O; // [REQUIRED] Species passed to CppBOLOS.
+                                            //   Names must exactly match the LXCat data file targets.
+                                            //   Species absent in the gas composition are set to 0.
+
+gridType         QuadraticGrid;  // [REQUIRED] Electron energy grid distribution.
+                                 //   Options: LinearGrid, QuadraticGrid, LogGrid.
+gridSize
+{
+    start     0;        // [REQUIRED] Grid start energy [eV]. Typically 0.
+    end       100;      // [REQUIRED] Grid end energy   [eV]. Must cover all cross-section data.
+    points    100;      // [REQUIRED] Number of grid points. More points = higher accuracy + cost.
+}
+
+E/N(NRP)         100;    // [REQUIRED] Reduced electric field during NRP discharge [Td].
+                         //   Active only while dischargeOn = true and iPulse < nPulses.
+
+E/N(DC)          20;     // [REQUIRED] Background DC reduced electric field [Td].
+                         //   EN_temp = max(EN_DC, 0.1) when no active discharge.
+
+stayDC           no;     // [REQUIRED] yes: maintain EN_temp = EN_DC after all NRP pulses end.
+                         //   no: drop EN_temp to 0.1 Td after the last pulse.
+
+f_NRP            30e3;   // [REQUIRED] NRP discharge repetition frequency [Hz].
+                         //   pulsePeriod = 1 / f_NRP [s].
+
+pulseEnergy      0.1;    // [REQUIRED] Per-pulse energy cut-off [mJ/cm^3].
+                         //   Discharge terminates when depositedPlasmaEnergy >= pulseEnergy.
+                         //   After cut-off, discharge switches to post-pulse relaxation phase.
+
+pulseWidth       2e-8;   // [REQUIRED] Maximum allowed discharge duration [s].
+                         //   If deposit energy threshold is not reached, discharge stops here.
+
+// Boltzmann solver re-solve thresholds
+TGAS_TOLERANCE   0.5;    // [REQUIRED] Re-solve EEDF if |T_gas - T_last| exceeds this [K].
+EN_TOLERANCE     0.5;    // [REQUIRED] Re-solve EEDF if |E/N - EN_last| exceeds this [Td].
+
+
+// ================  Data Files  ================
+
+csDataFile       "<case>/../../data/LXCat/bolsigdb_H2O2N2.dat";
+                         // [REQUIRED] LXCat cross-section data file (parsed by CppBOLOS).
+                         //   Use <case> token for paths relative to the case directory.
+
+mechFile         "<case>/../../data/PAC_kinetics/mechanism.yaml";
+                         // [REQUIRED] Default Cantera mechanism YAML.
+                         //   Overrideable per reactor via crnDict 'mechanismFile'.
+
+
+// ************************************************************************* //

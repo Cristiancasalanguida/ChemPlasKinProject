@@ -1,0 +1,77 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|     ____ _                    ____  _           _  ___                      |
+|    / ___| |__   ___ _ __ ___ |  _ \| | __ _ ___| |/ (_)_ __                 |
+|   | |   | '_ \ / _ \ '_ ` _ \| |_) | |/ _` / __| ' /| | '_ \                |
+|   | |___| | | |  __/ | | | | |  __/| | (_| \__ \ . \| | | | |               |
+|    \____|_| |_|\___|_| |_| |_|_|   |_|\__,_|___/_|\_\_|_| |_|               |
+|                                                                             |
+|   A Freeware for Unified Gas-Plasma Kinetics Simulation                     |
+|   Version:      1.2 (February 2026)                                         |
+|   License:      GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1              |
+|   Author:       Xiao Shao                                                   |
+|   Organization: King Abdullah University of Science and Technology (KAUST)  |
+|   Contact:      xiao.shao@kaust.edu.sa                                      |
+|-----------------------------------------------------------------------------|
+|   Reactor Network module made by: Cristian Casalanguida                     |
+|   Contact:      cristian.casalanguida@studenti.polito.it                    |
+\*---------------------------------------------------------------------------*/
+
+// ================  Time Control  ================
+//
+// Effective simulation end time = max(endTime, nPulses / f_NRP)
+// If endTimeForce is set, simulation terminates at min(t_end, endTimeForce).
+
+startTime      0.0;        // [REQUIRED] Simulation start time [s]
+endTime        0.0;        // [REQUIRED] Nominal end time [s].
+                           //   The actual end is max(this, nPulses * pulsePeriod).
+nPulses        10;         // [REQUIRED] Total number of NRP discharge pulses to simulate.
+                           //   Set to 0 to skip discharges entirely.
+
+// endTimeForce  1e-3;     // [OPTIONAL] Hard upper bound on simulation time [s].
+//                         //   Overrides t_end = max(endTime, nPulses*period) if smaller.
+//                         //   Default: no forced stop (= t_end).
+
+
+// ================  Time Step Parameters  ================
+
+dt1            1e-11;      // [REQUIRED] Fixed time step during a nanosecond discharge pulse [s].
+                           //   Used for the first two pulses or when nE_1 < 1e10 cm^-3.
+
+dt_max         1e-7;       // [REQUIRED] Maximum time step allowed between pulses [s].
+
+// Adaptive timestep for pulse phases
+pulseExten     1e-5;       // [REQUIRED] Duration of the fast post-discharge relaxation stage [s].
+                           //   Automatically clamped to [pulseWidth, 1/f_NRP].
+NstepInPulse   400;        // [REQUIRED] Number of log-dynamic steps inside a discharge pulse.
+NstepAfPulse   200;        // [REQUIRED] Number of log-dynamic steps during pulseExten.
+
+// Ignition detection
+dT_max         10.0;       // [REQUIRED] Maximum temperature jump per step for ignition detection [K].
+                           //   Clamped to at least 1 K to prevent dt cascade at startup.
+
+// Stopping criterion
+dTdt_min       5.0;        // [REQUIRED] Terminate simulation when max(|dT/dt|) < dTdt_min [K/s].
+                           //   Loop continues while ANY reactor's |dT/dt| exceeds this value.
+                           //   Set to 0 to disable and run to endTime only.
+
+
+// ================  ODE Solver Tolerances  ================
+
+odes
+{
+    reltol      1e-5;      // [REQUIRED] Relative tolerance for CVODE BDF solver.
+    abstol      1e-10;     // [REQUIRED] Absolute tolerance for CVODE BDF solver.
+}
+
+
+// ================  Output (legacy single-reactor mode)  ================
+// In CRN mode, per-reactor output files are specified in crnDict under
+// each reactor's 'outputFile' field. The entries below are kept for
+// compatibility with the original single-reactor masterCPK.cpp.
+
+outputFile       "<case>/output.csv"; // Output CSV path
+// writeSpecies   all;                 // Write ALL species
+writeSpecies     E, H2, O2, H, O, OH; // Write selected species by name
+
+
+// ************************************************************************* //

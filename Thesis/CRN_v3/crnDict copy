@@ -1,0 +1,265 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|     ____ _                    ____  _           _  ___                      |
+|    / ___| |__   ___ _ __ ___ |  _ \| | __ _ ___| |/ (_)_ __                 |
+|   | |   | '_ \ / _ \ '_ ` _ \| |_) | |/ _` / __| ' /| | '_ \                |
+|   | |___| | | |  __/ | | | | |  __/| | (_| \__ \ . \| | | | |               |
+|    \____|_| |_|\___|_| |_| |_|_|   |_|\__,_|___/_|\_\_|_| |_|               |
+|                                                                             |
+|   A Freeware for Unified Gas-Plasma Kinetics Simulation                     |
+|   Version:      1.2 (Feb 2026)                                              |
+|   License:      GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1              |
+|   Author:       Xiao Shao                                                   |
+|   Organization: King Abdullah University of Science and Technology (KAUST)  |
+|   Contact:      xiao.shao@kaust.edu.sa                                      |
+|   Dict for Chemical Reactor Network made by Cristian Casalanguida           |
+|-----------------------------------------------------------------------------|
+|   Reactor Network module made by: Cristian Casalanguida                     |
+|   Contact:      cristian.casalanguida@studenti.polito.it                    |
+\*---------------------------------------------------------------------------*/
+
+// ================ Reactors and reservoirs ================ 
+reactors
+{
+    PSR1 
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           yes; // *optional
+        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml"; // *optional
+        outputFile          "./PSR1/output.csv"; // *optional if not needed
+        initialTemperature  300.0; // Initial Temperature [K] *optional
+        pressure            101325.0; // Initial pressure [Pa] *optional
+        initialElectronDensity 1e4; // Initial electron number density [#/cm^3] *optional
+        composition
+        {
+            H2     0.1667;
+            O2     0.0833;
+            N2     0.75;
+        }
+    }
+
+    PSR2
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           no;
+        outputFile          "./PSR2/output.csv";
+        composition
+        {
+            H2     0.1667;
+            O2     0.0833;
+            N2     0.75;
+        }
+    }
+
+    PSR3
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           no;
+        outputFile          "./PSR3/output.csv";
+        composition
+        {
+            H2     0.1667;
+            O2     0.0833;
+            N2     0.75;
+        }
+    }
+
+    PSR4
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           no;
+        outputFile          "./PSR4/output.csv";
+        composition
+        {
+            H2     0.1667;
+            O2     0.0833;
+            N2     0.75;
+        }
+    }
+
+    PSR5
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           no;
+        outputFile          "./PSR5/output.csv";
+        composition
+        {
+            H2     0.1667;
+            O2     0.0833;
+            N2     0.75;
+        }
+    }
+
+    PSR6
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           no;
+        outputFile          "./PSR6/output.csv";
+        composition
+        {
+            H2     0.1667;
+            O2     0.0833;
+            N2     0.75;
+        }
+    }
+
+    airInlet
+    {
+        type        reservoir;
+        composition
+        {
+            O2     0.0833;
+            N2     0.75;
+        }
+    }
+
+    H2Inlet
+    {
+        type        reservoir;
+        composition
+        {
+            H2  1.0;
+        }
+    }
+}
+
+massFlowControllers
+{
+    airI
+    {
+        start   airInlet;
+        end     PSR1;
+        value   0.0;
+    }
+
+    airII
+    {
+        start   airInlet;
+        end     PSR2;
+        value   0.0;
+    }
+
+    airIII
+    {
+        start   airInlet;
+        end     PSR5;
+        value   0.0;
+    }
+
+    H2I
+    {
+        start   H2Inlet;
+        end     PSR1;
+        value   0.0;
+    }
+    
+    H2II
+    {
+        start   H2Inlet;
+        end     PSR2;
+        value   0.0;
+    }
+
+    mA
+    {
+        start   PSR1;
+        end     PSR2;
+        value   0.0;
+    }
+
+    mB
+    {
+        start   PSR2;
+        end     PSR1;
+        value   0.0;
+    }
+
+    mC
+    {
+        start   PSR2;
+        end     PSR3;
+        value   0.0;
+    }
+
+    mD
+    {
+        start   PSR3;
+        end     PSR2;
+        value   0.0;
+    }
+
+    mE
+    {
+        start   PSR2;
+        end     PSR4;
+        value   0.0;
+    }
+
+    mF
+    {
+        start   PSR4;
+        end     PSR2;
+        value   0.0;
+    }
+
+    mG
+    {
+        start   PSR3;
+        end     PSR5;
+        value   0.0;
+    }
+
+    mH
+    {
+        start   PSR5;
+        end     PSR3;
+        value   0.0;
+    }
+
+    mI
+    {
+        start   PSR3;
+        end     PSR4;
+        value   0.0;
+    }
+
+    mL
+    {
+        start   PSR4;
+        end     PSR3;
+        value   0.0;
+    }
+
+    mM
+    {
+        start   PSR4;
+        end     PSR5;
+        value   0.0;
+    }
+
+    mN
+    {
+        start   PSR5;
+        end     PSR4;
+        value   0.0;
+    }
+
+    mO
+    {
+        start   PSR5;
+        end     PSR6;
+        value   0.0;
+    }
+
+    mOut
+    {
+        start   PSR6;
+        end     airInlet;
+        value   0.0;
+    }
+}

@@ -1,0 +1,302 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|     ____ _                    ____  _           _  ___                      |
+|    / ___| |__   ___ _ __ ___ |  _ \| | __ _ ___| |/ (_)_ __                 |
+|   | |   | '_ \ / _ \ '_ ` _ \| |_) | |/ _` / __| ' /| | '_ \                |
+|   | |___| | | |  __/ | | | | |  __/| | (_| \__ \ . \| | | | |               |
+|    \____|_| |_|\___|_| |_| |_|_|   |_|\__,_|___/_|\_\_|_| |_|               |
+|                                                                             |
+|   A Freeware for Unified Gas-Plasma Kinetics Simulation                     |
+|   Version:      1.2 (February 2026)                                         |
+|   License:      GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1              |
+|   Author:       Xiao Shao                                                   |
+|   Organization: King Abdullah University of Science and Technology (KAUST)  |
+|   Contact:      xiao.shao@kaust.edu.sa                                      |
+|-----------------------------------------------------------------------------|
+|   Reactor Network module made by: Cristian Casalanguida                     |
+|   Contact:      cristian.casalanguida@studenti.polito.it                    |
+\*---------------------------------------------------------------------------*/
+
+// ================  Reactors and Reservoirs  ================
+//
+// Each entry defines a named zone in the Chemical Reactor Network.
+// Types:
+//   PSR (or any non-"reservoir" string) — active ODE reactor, tracked by ChemPlasReactor
+//   reservoir                           — fixed boundary condition, infinite supply
+//
+// Field optionality for REACTORS (non-reservoir):
+//   REQUIRED: type, volume
+//   OPTIONAL: discharge, mechanismFile, outputFile, initialTemperature,
+//             pressure, initialElectronDensity, composition
+//   If an optional field is absent, the global default from chemPlasProperties is used.
+//
+// Field optionality for RESERVOIRS:
+//   REQUIRED: type
+//   OPTIONAL: composition, mechanismFile, initialTemperature, pressure, outputFile
+//   Defaults are filled from chemPlasProperties globals if absent.
+
+reactors
+{
+    // ---- Active PSR reactor with all optional fields specified ----
+    PSR1
+    {
+        type                PSR;            // [REQUIRED] Reactor type (any string != "reservoir")
+        volume              0.15;           // [REQUIRED] Reactor volume [m^3]. Must be > 0.
+
+        discharge           yes;            // [OPTIONAL] yes/no: participate in NRP discharge.
+                                            //   Default: no (false). Only reactors with discharge=yes
+                                            //   receive the EN field during the discharge phase.
+
+        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml";
+                                            // [OPTIONAL] Per-reactor Cantera YAML mechanism.
+                                            //   Default: mechFile from chemPlasProperties.
+                                            //   Use <case> for relative paths.
+
+        outputFile          "<case>/output/PSR1.csv";
+                                            // [OPTIONAL] Output CSV file path for this reactor.
+                                            //   Default: "../output/<reactorName>.csv".
+                                            //   Directory is created automatically if absent.
+
+        initialTemperature  300.0;          // [OPTIONAL] Initial gas temperature [K].
+                                            //   Default: Temperature from chemPlasProperties.
+
+        pressure            101325.0;       // [OPTIONAL] Initial pressure [Pa].
+                                            //   Default: Pressure from chemPlasProperties.
+
+        initialElectronDensity 1e4;         // [OPTIONAL] Initial electron density [#/cm^3].
+                                            //   Default: electronDens from chemPlasProperties.
+                                            //   Ignored if 'E' mole fraction is given in composition.
+
+        composition                         // [OPTIONAL] Initial mole fractions.
+        {                                   //   Default: Mixture from chemPlasProperties.
+            H2     0.1667;                  //   BoltzmannSpecies fractions are extracted
+            O2     0.0833;                  //   automatically from this composition.
+            N2     0.75;
+        }
+    }
+
+    // ---- Minimal reactor: inherits all defaults from chemPlasProperties ----
+    PSR2
+    {
+        type                PSR;
+        volume              0.15;
+        discharge           no;
+        outputFile          "<case>/output/PSR2.csv";
+    }
+
+    // ---- Additional reactors follow the same pattern ----
+    PSR3
+    {
+        type                PSR;
+        volume              0.15;
+        discharge           no;
+        outputFile          "<case>/output/PSR3.csv";
+    }
+
+    PSR4
+    {
+        type                PSR;
+        volume              0.15;
+        discharge           no;
+        outputFile          "<case>/output/PSR4.csv";
+    }
+
+    PSR5
+    {
+        type                PSR;
+        volume              0.15;
+        discharge           no;
+        outputFile          "<case>/output/PSR5.csv";
+    }
+
+    PSR6
+    {
+        type                PSR;
+        volume              0.15;
+        discharge           no;
+        outputFile          "<case>/output/PSR6.csv";
+    }
+
+    // ---- Air inlet reservoir: fixed boundary, no kinetics, infinite supply ----
+    airInlet
+    {
+        type                reservoir;      // [REQUIRED] Fixed boundary condition.
+        composition                         // [OPTIONAL] Mole fractions. Default: Mixture.
+        {
+            O2     0.0833;
+            N2     0.75;
+        }
+        initialTemperature  300.0;          // [OPTIONAL] Fixed T of the reservoir [K].
+        pressure            101325.0;       // [OPTIONAL] Fixed P of the reservoir [Pa].
+        // outputFile       "<case>/output/airInlet.csv"; // [OPTIONAL] Write one-line snapshot.
+    }
+
+    // ---- Fuel inlet reservoir ----
+    H2Inlet
+    {
+        type                reservoir;
+        composition
+        {
+            H2     1.0;
+        }
+    }
+}
+
+
+// ================  Mass Flow Controllers  ================
+//
+// Each controller defines a directed mass flow connection:
+//   start → source zone (reactor or reservoir)
+//   end   → destination zone (reactor or reservoir)
+//   value → mass flow rate [kg/s]
+//
+// IMPORTANT: The 'value' field is OVERWRITTEN at every timestep by the Python
+//   mass-flow solver (massflowsolver.py mainSolver). The initial value here
+//   is only used if the Python session fails or before the first call.
+//   Initial value 0.0 is safe.
+//
+// IMPORTANT: Each controller name here MUST exactly match a key returned by
+//   mainSolver() in massflowsolver.py, otherwise a runtime_error is thrown.
+//
+// Controllers where start == reservoir: reservoir provides infinite mass at
+//   fixed state (no density update on source side).
+// Controllers where end == reservoir: outflow to reservoir; only the source
+//   density is updated (accumulation in reservoir is skipped).
+
+massFlowControllers
+{
+    // ---- Inlet flows from reservoirs to reactors ----
+    airI
+    {
+        start   airInlet;
+        end     PSR1;
+        value   0.0;        // [kg/s] — overwritten by Python solver each step
+    }
+
+    airII
+    {
+        start   airInlet;
+        end     PSR2;
+        value   0.0;
+    }
+
+    airIII
+    {
+        start   airInlet;
+        end     PSR5;
+        value   0.0;
+    }
+
+    H2I
+    {
+        start   H2Inlet;
+        end     PSR1;
+        value   0.0;
+    }
+
+    H2II
+    {
+        start   H2Inlet;
+        end     PSR2;
+        value   0.0;
+    }
+
+    // ---- Internal reactor-to-reactor recirculation flows ----
+    mA
+    {
+        start   PSR1;
+        end     PSR2;
+        value   0.0;
+    }
+
+    mB
+    {
+        start   PSR2;
+        end     PSR1;
+        value   0.0;
+    }
+
+    mC
+    {
+        start   PSR2;
+        end     PSR3;
+        value   0.0;
+    }
+
+    mD
+    {
+        start   PSR3;
+        end     PSR2;
+        value   0.0;
+    }
+
+    mE
+    {
+        start   PSR2;
+        end     PSR4;
+        value   0.0;
+    }
+
+    mF
+    {
+        start   PSR4;
+        end     PSR2;
+        value   0.0;
+    }
+
+    mG
+    {
+        start   PSR3;
+        end     PSR5;
+        value   0.0;
+    }
+
+    mH
+    {
+        start   PSR5;
+        end     PSR3;
+        value   0.0;
+    }
+
+    mI
+    {
+        start   PSR3;
+        end     PSR4;
+        value   0.0;
+    }
+
+    mL
+    {
+        start   PSR4;
+        end     PSR3;
+        value   0.0;
+    }
+
+    mM
+    {
+        start   PSR4;
+        end     PSR5;
+        value   0.0;
+    }
+
+    mN
+    {
+        start   PSR5;
+        end     PSR4;
+        value   0.0;
+    }
+
+    // ---- Outlet flow to reservoir ----
+    mO
+    {
+        start   PSR5;
+        end     PSR6;
+        value   0.0;
+    }
+
+    mOut
+    {
+        start   PSR6;
+        end     airInlet;   // Outlet to reservoir: source density updated, no accumulation in airInlet
+        value   0.0;
+    }
+}
