@@ -1,0 +1,44 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|     ____ _                    ____  _           _  ___                      |
+|    / ___| |__   ___ _ __ ___ |  _ \| | __ _ ___| |/ (_)_ __                 |
+|   | |   | '_ \ / _ \ '_ ` _ \| |_) | |/ _` / __| ' /| | '_ \                |
+|   | |___| | | |  __/ | | | | |  __/| | (_| \__ \ . \| | | | |               |
+|    \____|_| |_|\___|_| |_| |_|_|   |_|\__,_|___/_|\_\_|_| |_|               |
+|                                                                             |
+|   A Freeware for Unified Gas-Plasma Kinetics Simulation                     |
+|   Version:      1.2 (February 2026)                                         |
+|   Developed by: Xiao Shao                                                   |
+|   Organization: King Abdullah University of Science and Technology (KAUST)  |
+|   Contact:      xiao.shao@kaust.edu.sa                                      |
+\*---------------------------------------------------------------------------*/
+
+// ================ Time Control Parameters ================
+
+startTime      0.0;     // Simulation start time [s]
+endTime        0.716;    // Simulation end time [s]
+nPulses        288;     // Total number of pulses
+
+// ================ Time Step Parameters ================
+
+dt1            1e-11;   // Time step during the discharge pulse [s]
+dt_max         1e-5;    // Maximum time step allowed [s]
+
+pulseExten     1e-5;    // Fast relaxation or pulse influence stage [s]
+NstepInPulse   400;     // Number of time steps in a pulse discharge
+NstepAfPulse   100;     // Number of time steps during pulseExten
+
+dT_max         10.0;   // Maximum temperature increase per step allowed, [K]
+
+odes
+{
+      reltol      1e-5;  //  Relative tolerance
+      abstol      1e-10;  //  Absolute tolerance
+}
+
+// ================ Output Log ================
+outputFile       "<case>/output_H2O2.csv";
+//writeSpecies   all; // Write ALL species
+writeSpecies   E, H2, O2, H, O, OH, O2(a1); // Write selected species
+//speciesAmount    moleFraction; // 'moleFraction' or 'numberDensity'(default)
+
+// ************************************************************************* //

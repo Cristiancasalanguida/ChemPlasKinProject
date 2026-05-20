@@ -1,0 +1,65 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|     ____ _                    ____  _           _  ___                      |
+|    / ___| |__   ___ _ __ ___ |  _ \| | __ _ ___| |/ (_)_ __                 |
+|   | |   | '_ \ / _ \ '_ ` _ \| |_) | |/ _` / __| ' /| | '_ \                |
+|   | |___| | | |  __/ | | | | |  __/| | (_| \__ \ . \| | | | |               |
+|    \____|_| |_|\___|_| |_| |_|_|   |_|\__,_|___/_|\_\_|_| |_|               |
+|                                                                             |
+|   A Freeware for Unified Gas-Plasma Kinetics Simulation                     |
+|   Version:      1.2 (February 2026)                                         |
+|   Developed by: Xiao Shao                                                   |
+|   Organization: King Abdullah University of Science and Technology (KAUST)  |
+|   Contact:      xiao.shao@kaust.edu.sa                                      |
+\*---------------------------------------------------------------------------*/
+// ================ Initial Conditions ================
+
+Temperature      300;    // Initial gas temperature [K]
+Pressure         101325; // Initial pressure [Pa]
+CP_or_CV         CP; // Constant pressure (CP) or constant volume (CV)
+nonThermal       yes; // No thermal effect, hold temperature as constant
+plasmaHeatModel  Flitti; // Flitti A, Pancheshnyi S 2009 model
+heatLoss         no;
+C0               1.975e7;
+
+Mixture // Initial mixture composition
+{
+     H2     0.02;
+     O2     0.98;
+}
+fuelName         H2;
+electronDens     1e5; // Initial electron number density [#/cm^3]
+inertSpecies     N2; // 
+
+// ================ Plasma Parameters ================
+
+BoltzmannSpecies   H2, O2, H, O, H2O, O3; // Species configured by Boltzmann equation solver
+gridType         QuadraticGrid; // LinearGrid, LogGrid, GeometricGrid
+gridSize
+{
+     start     0;   // Start value [eV]
+     end       60;  // End value [eV]
+     points    180; // Number of points [#]
+}
+
+E/N(NRP)         206; // Reduced electric field for the NRP discharges [Td]
+E/N(DC)          0.1; // E/N for DC discharges [Td]
+stayDC           no;  // Whether to maintain DC discharge after NRP
+
+f_NRP            402.2346; // = nPulses/t_end
+
+pulseEnergy      0.948;    // Input energy per pulse, 10 * 8194.5/nPulses/Tgas [mJ*cm^-3]
+
+pulseWidth       2.e-8;    // Pulse width limit [s]
+
+// Criteria of updating Boltzmann solver
+TGAS_TOLERANCE   0.5; // Absolute tolerance of gas temperature change [K]
+EN_TOLERANCE     0.5; // Absolute tolerance of E/N change [Td]
+
+
+// ================ Data Files ================
+
+csDataFile       "<case>/../../data/LXCat/bolsigdb_H2O2.dat";
+mechFile         "<case>/h2o2_plasma.yaml";
+
+
+// ************************************************************************* //
