@@ -376,8 +376,29 @@ CMAKE_TAPI-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding Python3
+FIND_PACKAGE_MESSAGE_DETAILS_Python3:INTERNAL=[/home/cristiancasalanguida/miniconda3/bin/python3][/home/cristiancasalanguida/miniconda3/include/python3.13][/home/cristiancasalanguida/miniconda3/lib/libpython3.13.so][cfound components: Interpreter Development Development.Module Development.Embed ][v3.13.11()]
 //Details about finding Threads
 FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
+//Compiler reason failure
+_Python3_Compiler_REASON_FAILURE:INTERNAL=
+_Python3_DEVELOPMENT_EMBED_SIGNATURE:INTERNAL=59a76c8d4a070d3fdb9e090506df5906
+_Python3_DEVELOPMENT_MODULE_SIGNATURE:INTERNAL=ef4a855fb651ab25ba69c7d31c7950f0
+//Development reason failure
+_Python3_Development_REASON_FAILURE:INTERNAL=
+//Path to a program.
+_Python3_EXECUTABLE:INTERNAL=/home/cristiancasalanguida/miniconda3/bin/python3
+//Path to a file.
+_Python3_INCLUDE_DIR:INTERNAL=/home/cristiancasalanguida/miniconda3/include/python3.13
+//Python3 Properties
+_Python3_INTERPRETER_PROPERTIES:INTERNAL=Python;3;13;11;64;;cpython-313-x86_64-linux-gnu;abi3;/home/cristiancasalanguida/miniconda3/lib/python3.13;/home/cristiancasalanguida/miniconda3/lib/python3.13;/home/cristiancasalanguida/miniconda3/lib/python3.13/site-packages;/home/cristiancasalanguida/miniconda3/lib/python3.13/site-packages
+_Python3_INTERPRETER_SIGNATURE:INTERNAL=265865e177aff988029d8d19f0255109
+//Interpreter reason failure
+_Python3_Interpreter_REASON_FAILURE:INTERNAL=
+//Path to a library.
+_Python3_LIBRARY_RELEASE:INTERNAL=/home/cristiancasalanguida/miniconda3/lib/libpython3.13.so
+//NumPy reason failure
+_Python3_NumPy_REASON_FAILURE:INTERNAL=
 

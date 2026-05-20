@@ -1,29 +1,43 @@
 CMakeFiles/ChemPlasKin.dir/masterCRN.cpp.o: \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/masterCRN.cpp \
  /usr/include/stdc-predef.h \
- /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/core.h \
- /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/Solution.h \
- /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/ctexceptions.h \
- /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/ct_defs.h \
- /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/config.h \
- /usr/include/c++/13/cmath /usr/include/c++/13/bits/requires_hosted.h \
- /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
- /usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h \
- /usr/include/features.h /usr/include/features-time64.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/Python.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/patchlevel.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pyconfig.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pymacconfig.h \
+ /usr/include/assert.h /usr/include/features.h \
+ /usr/include/features-time64.h \
  /usr/include/x86_64-linux-gnu/bits/wordsize.h \
  /usr/include/x86_64-linux-gnu/bits/timesize.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
  /usr/include/x86_64-linux-gnu/bits/long-double.h \
  /usr/include/x86_64-linux-gnu/gnu/stubs.h \
- /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
- /usr/include/x86_64-linux-gnu/c++/13/bits/cpu_defines.h \
- /usr/include/c++/13/pstl/pstl_config.h \
- /usr/include/c++/13/bits/cpp_type_traits.h \
- /usr/include/c++/13/ext/type_traits.h /usr/include/math.h \
+ /usr/include/x86_64-linux-gnu/gnu/stubs-64.h /usr/include/inttypes.h \
+ /usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
  /usr/include/x86_64-linux-gnu/bits/types.h \
  /usr/include/x86_64-linux-gnu/bits/typesizes.h \
  /usr/include/x86_64-linux-gnu/bits/time64.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
+ /usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h \
+ /usr/lib/gcc/x86_64-linux-gnu/13/include/syslimits.h \
+ /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/local_lim.h \
+ /usr/include/linux/limits.h \
+ /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h \
+ /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/xopen_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/uio_lim.h /usr/include/c++/13/math.h \
+ /usr/include/c++/13/cmath /usr/include/c++/13/bits/requires_hosted.h \
+ /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
+ /usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h \
+ /usr/include/x86_64-linux-gnu/c++/13/bits/cpu_defines.h \
+ /usr/include/c++/13/pstl/pstl_config.h \
+ /usr/include/c++/13/bits/cpp_type_traits.h \
+ /usr/include/c++/13/ext/type_traits.h /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
  /usr/include/x86_64-linux-gnu/bits/floatn.h \
@@ -45,8 +59,7 @@ CMakeFiles/ChemPlasKin.dir/masterCRN.cpp.o: \
  /usr/include/x86_64-linux-gnu/bits/types/clock_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/clockid_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/time_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/timer_t.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-intn.h /usr/include/endian.h \
+ /usr/include/x86_64-linux-gnu/bits/types/timer_t.h /usr/include/endian.h \
  /usr/include/x86_64-linux-gnu/bits/endian.h \
  /usr/include/x86_64-linux-gnu/bits/endianness.h \
  /usr/include/x86_64-linux-gnu/bits/byteswap.h \
@@ -93,7 +106,185 @@ CMakeFiles/ChemPlasKin.dir/masterCRN.cpp.o: \
  /usr/include/c++/13/tr1/modified_bessel_func.tcc \
  /usr/include/c++/13/tr1/poly_hermite.tcc \
  /usr/include/c++/13/tr1/poly_laguerre.tcc \
- /usr/include/c++/13/tr1/riemann_zeta.tcc /usr/include/c++/13/cstdlib \
+ /usr/include/c++/13/tr1/riemann_zeta.tcc \
+ /usr/lib/gcc/x86_64-linux-gnu/13/include/stdarg.h /usr/include/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/types/wint_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/mbstate_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar2-decl.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar2.h /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/include/x86_64-linux-gnu/bits/types/error_t.h /usr/include/stdio.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
+ /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/13/stdlib.h \
+ /usr/include/c++/13/cstdlib /usr/include/string.h /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /usr/include/ctype.h /usr/include/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
+ /usr/include/x86_64-linux-gnu/bits/environments.h \
+ /usr/include/x86_64-linux-gnu/bits/confname.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd-decl.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
+ /usr/include/linux/close_range.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pyport.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/exports.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pymacro.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pymath.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pymem.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pymem.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pytypedefs.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pybuffer.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pystats.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pyatomic.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pyatomic.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pyatomic_gcc.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/lock.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/lock.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/object.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/object.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/objimpl.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/objimpl.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/typeslots.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pyhash.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pyhash.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pydebug.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/bytearrayobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/bytearrayobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/bytesobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/bytesobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/unicodeobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/unicodeobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pyerrors.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pyerrors.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/longobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/longobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/longintrepr.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/boolobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/floatobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/floatobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/complexobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/complexobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/rangeobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/memoryobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/memoryobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/tupleobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/tupleobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/listobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/listobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/dictobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/dictobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/odictobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/enumobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/setobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/setobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/methodobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/methodobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/moduleobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/monitoring.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/monitoring.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/funcobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/classobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/fileobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/fileobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pycapsule.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/code.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pyframe.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pyframe.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/traceback.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/traceback.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/sliceobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/cellobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/iterobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/initconfig.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pystate.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pystate.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/genobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/descrobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/descrobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/genericaliasobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/warnings.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/warnings.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/weakrefobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/weakrefobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/structseq.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/picklebufobject.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pytime.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/codecs.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pythread.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pythread.h \
+ /usr/include/pthread.h /usr/include/sched.h \
+ /usr/include/x86_64-linux-gnu/bits/sched.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_sched_param.h \
+ /usr/include/x86_64-linux-gnu/bits/cpu-set.h /usr/include/time.h \
+ /usr/include/x86_64-linux-gnu/bits/time.h \
+ /usr/include/x86_64-linux-gnu/bits/timex.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h \
+ /usr/include/x86_64-linux-gnu/bits/setjmp.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/context.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/modsupport.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/modsupport.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/compile.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/compile.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pythonrun.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pythonrun.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pylifecycle.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pylifecycle.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/ceval.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/ceval.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/sysmodule.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/sysmodule.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/osmodule.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/intrcheck.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/import.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/import.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/abstract.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/abstract.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/bltinmodule.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/critical_section.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/critical_section.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pyctype.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pystrtod.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/pystrcmp.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/fileutils.h \
+ /usr/include/x86_64-linux-gnu/sys/stat.h \
+ /usr/include/x86_64-linux-gnu/bits/stat.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_stat.h \
+ /usr/include/x86_64-linux-gnu/bits/statx.h /usr/include/linux/stat.h \
+ /usr/include/linux/types.h /usr/include/x86_64-linux-gnu/asm/types.h \
+ /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h \
+ /usr/include/x86_64-linux-gnu/asm/bitsperlong.h \
+ /usr/include/asm-generic/bitsperlong.h /usr/include/linux/posix_types.h \
+ /usr/include/linux/stddef.h \
+ /usr/include/x86_64-linux-gnu/asm/posix_types.h \
+ /usr/include/x86_64-linux-gnu/asm/posix_types_64.h \
+ /usr/include/asm-generic/posix_types.h \
+ /usr/include/x86_64-linux-gnu/bits/statx-generic.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_statx_timestamp.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_statx.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/fileutils.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/pyfpe.h \
+ /home/cristiancasalanguida/miniconda3/include/python3.13/cpython/tracemalloc.h \
+ /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/core.h \
+ /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/Solution.h \
+ /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/ctexceptions.h \
+ /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/ct_defs.h \
+ /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/config.h \
  /usr/include/c++/13/vector /usr/include/c++/13/bits/allocator.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++allocator.h \
  /usr/include/c++/13/bits/new_allocator.h /usr/include/c++/13/new \
@@ -127,38 +318,16 @@ CMakeFiles/ChemPlasKin.dir/masterCRN.cpp.o: \
  /usr/include/c++/13/bits/stringfwd.h \
  /usr/include/c++/13/bits/char_traits.h \
  /usr/include/c++/13/bits/postypes.h /usr/include/c++/13/cwchar \
- /usr/include/wchar.h /usr/lib/gcc/x86_64-linux-gnu/13/include/stdarg.h \
- /usr/include/x86_64-linux-gnu/bits/wchar.h \
- /usr/include/x86_64-linux-gnu/bits/types/wint_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/mbstate_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
- /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2-decl.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2.h \
  /usr/include/c++/13/bits/localefwd.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++locale.h \
  /usr/include/c++/13/clocale /usr/include/locale.h \
  /usr/include/x86_64-linux-gnu/bits/locale.h /usr/include/c++/13/iosfwd \
- /usr/include/c++/13/cctype /usr/include/ctype.h \
- /usr/include/c++/13/bits/ostream_insert.h \
+ /usr/include/c++/13/cctype /usr/include/c++/13/bits/ostream_insert.h \
  /usr/include/c++/13/bits/cxxabi_forced.h \
  /usr/include/c++/13/bits/basic_string.h /usr/include/c++/13/string_view \
  /usr/include/c++/13/bits/string_view.tcc \
  /usr/include/c++/13/ext/string_conversions.h /usr/include/c++/13/cstdio \
- /usr/include/stdio.h /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
- /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
- /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/13/cerrno \
- /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
- /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
- /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
- /usr/include/c++/13/bits/charconv.h \
+ /usr/include/c++/13/cerrno /usr/include/c++/13/bits/charconv.h \
  /usr/include/c++/13/bits/basic_string.tcc /usr/include/c++/13/algorithm \
  /usr/include/c++/13/bits/stl_algo.h \
  /usr/include/c++/13/bits/algorithmfwd.h \
@@ -168,28 +337,13 @@ CMakeFiles/ChemPlasKin.dir/masterCRN.cpp.o: \
  /usr/include/c++/13/pstl/glue_algorithm_defs.h \
  /usr/include/c++/13/pstl/execution_defs.h /usr/include/c++/13/memory \
  /usr/include/c++/13/bits/stl_raw_storage_iter.h \
- /usr/include/c++/13/bits/align.h \
- /usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h /usr/include/stdint.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
- /usr/include/c++/13/bits/unique_ptr.h \
+ /usr/include/c++/13/bits/align.h /usr/include/c++/13/bits/unique_ptr.h \
  /usr/include/c++/13/bits/shared_ptr.h \
  /usr/include/c++/13/bits/shared_ptr_base.h /usr/include/c++/13/typeinfo \
  /usr/include/c++/13/bits/allocated_ptr.h \
  /usr/include/c++/13/ext/atomicity.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/gthr.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/gthr-default.h \
- /usr/include/pthread.h /usr/include/sched.h \
- /usr/include/x86_64-linux-gnu/bits/sched.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_sched_param.h \
- /usr/include/x86_64-linux-gnu/bits/cpu-set.h /usr/include/time.h \
- /usr/include/x86_64-linux-gnu/bits/time.h \
- /usr/include/x86_64-linux-gnu/bits/timex.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h \
- /usr/include/x86_64-linux-gnu/bits/setjmp.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h \
- /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h \
  /usr/include/x86_64-linux-gnu/c++/13/bits/atomic_word.h \
  /usr/include/x86_64-linux-gnu/sys/single_threaded.h \
  /usr/include/c++/13/ext/concurrence.h /usr/include/c++/13/exception \
@@ -211,9 +365,6 @@ CMakeFiles/ChemPlasKin.dir/masterCRN.cpp.o: \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/base/fmt.h \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/ext/fmt/format.h \
  /usr/include/c++/13/cstdint /usr/include/c++/13/cstring \
- /usr/include/string.h /usr/include/strings.h \
- /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
- /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
  /usr/include/c++/13/stdexcept /usr/include/c++/13/system_error \
  /usr/include/x86_64-linux-gnu/c++/13/bits/error_constants.h \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/ext/fmt/core.h \
@@ -279,18 +430,9 @@ CMakeFiles/ChemPlasKin.dir/masterCRN.cpp.o: \
  /usr/lib/gcc/x86_64-linux-gnu/13/include/emmintrin.h \
  /usr/lib/gcc/x86_64-linux-gnu/13/include/xmmintrin.h \
  /usr/lib/gcc/x86_64-linux-gnu/13/include/mm_malloc.h \
- /usr/include/c++/13/stdlib.h /usr/include/c++/13/complex \
+ /usr/include/c++/13/complex \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/ext/Eigen/src/Core/util/MKL_support.h \
- /usr/include/c++/13/cassert /usr/include/assert.h \
- /usr/include/c++/13/climits \
- /usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h \
- /usr/lib/gcc/x86_64-linux-gnu/13/include/syslimits.h \
- /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
- /usr/include/x86_64-linux-gnu/bits/local_lim.h \
- /usr/include/linux/limits.h \
- /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
- /usr/include/x86_64-linux-gnu/bits/xopen_lim.h \
- /usr/include/x86_64-linux-gnu/bits/uio_lim.h \
+ /usr/include/c++/13/cassert /usr/include/c++/13/climits \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/ext/Eigen/src/Core/util/Constants.h \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/ext/Eigen/src/Core/util/Meta.h \
  /home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/Thesis/CRN_v3/../../../cantera/include/cantera/ext/Eigen/src/Core/util/ForwardDeclarations.h \

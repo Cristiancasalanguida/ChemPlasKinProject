@@ -437,7 +437,7 @@ ReservoirState createReservoirState(
     state.gas->setState_TPX(config.initialTemperature.value(), config.pressure.value(), *config.composition);
 
     std::cout << "Reservoir '" << name << "': T=" << config.initialTemperature.value()
-              << " K, p=" << config.pressure.value() << " Pa, M=" << state.gas->molarMass() << " kg/kmol\n";
+              << " K, p=" << config.pressure.value() << " Pa, M=" << state.gas->meanMolecularWeight() << " kg/kmol\n";
 
     const std::string outputPath = config.outputFile.value_or("");
     if (!outputPath.empty()) {
@@ -1004,13 +1004,13 @@ int main(int argc, char *argv[]) {
             if (configStart.type != "reservoir") {
                 ReactorState& stateStart = reactors[configStart.indexState];
                 double nStart     = stateStart.gas->molarDensity() * configStart.volume; // [kmol]
-                double mass_start = nStart * stateStart.gas->molarMass();                // [kg]
+                double mass_start = nStart * stateStart.gas->meanMolecularWeight();                // [kg]
                 T_src  = stateStart.gas->temperature();
                 cp_src = stateStart.gas->cp_mass();
 
-                n_transferred    = mass_transferred / stateStart.gas->molarMass();
+                n_transferred    = mass_transferred / stateStart.gas->meanMolecularWeight();
                 n_transferred    = std::min(n_transferred, nStart);
-                mass_transferred = n_transferred * stateStart.gas->molarMass();
+                mass_transferred = n_transferred * stateStart.gas->meanMolecularWeight();
 
                 // Accumulate into destination only if it is a reactor (not a reservoir)
                 if (configEnd.type != "reservoir") {
@@ -1031,7 +1031,7 @@ int main(int argc, char *argv[]) {
                     accum.sumCpMassT += cp_src * mass_transferred * T_src;
                     accum.sumCpMass  += cp_src * mass_transferred;
                 }
-
+                
                 // Always update source density (regardless of destination type)
                 double new_density_start = (mass_start - mass_transferred) / configStart.volume;
                 stateStart.gas->setState_TD(T_src, new_density_start);
@@ -1044,7 +1044,7 @@ int main(int argc, char *argv[]) {
                     const ReservoirState& stateStart = reservoirs[configStart.indexState];
                     T_src  = stateStart.gas->temperature();
                     cp_src = stateStart.gas->cp_mass();
-                    n_transferred = mass_transferred / stateStart.gas->molarMass(); // no clamping
+                    n_transferred = mass_transferred / stateStart.gas->meanMolecularWeight(); // no clamping
 
                     const ReactorState& stateEnd = reactors[configEnd.indexState];
                     const size_t nSpec = stateEnd.gas->nSpecies();
@@ -1075,7 +1075,7 @@ int main(int argc, char *argv[]) {
             const size_t nSpec        = stateEnd.gas->nSpecies();
 
             double nEnd     = stateEnd.gas->molarDensity() * configEnd.volume; // [kmol]
-            double mass_end = nEnd * stateEnd.gas->molarMass();                // [kg]
+            double mass_end = nEnd * stateEnd.gas->meanMolecularWeight();                // [kg]
             double T_end    = stateEnd.gas->temperature();
             double cp_end   = stateEnd.gas->cp_mass();
 
