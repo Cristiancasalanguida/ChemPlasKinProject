@@ -30,7 +30,13 @@ flowchart TD
     %% --- SOURCE IS A REACTOR ---
     SRCT -->|"Yes (reactor source)"| RST["stateStart = reactors[configStart.indexState]\nnStart     = molarDensity × volume  [kmol]\nmass_start = nStart × molarMass     [kg]\nT_src  = gas->temperature()\ncp_src = gas->cp_mass()"]
 
-    RST --> CLAMP["n_transferred    = mass_transferred / molarMass\nn_transferred    = min(n_transferred, nStart)   [clamp]\nmass_transferred = n_transferred × molarMass    [kg]"]
+    RST --> PRESCHECK{"configEnd.type\n== 'reservoir'?"}
+
+    PRESCHECK -->|"Yes — pressure-driven outflow"| PRESADD["mass_transferred += kOutPressure × (P_src − P_reservoir) × dt\n[P_reservoir = configEnd.pressure.value()]"]
+    PRESADD --> CLAMP
+    PRESCHECK -->|"No"| CLAMP
+
+    CLAMP["n_transferred    = mass_transferred / molarMass\nn_transferred    = min(n_transferred, nStart)   [clamp]\nmass_transferred = n_transferred × molarMass    [kg]"]
 
     CLAMP --> ENDT1{"configEnd.type\n== 'reactor'?"}
 
