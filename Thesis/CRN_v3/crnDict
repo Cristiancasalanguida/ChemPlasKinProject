@@ -22,7 +22,6 @@ reactors
         type                PSR;
         volume              0.15; // [m^3]
         discharge           no; // *optional
-        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml"; // *optional
         initialTemperature  300.0; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
@@ -37,7 +36,6 @@ reactors
         type                PSR;
         volume              0.15; // [m^3]
         discharge           no; // *optional
-        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml"; // *optional
         initialTemperature  2000.0; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
@@ -58,7 +56,6 @@ reactors
         type                PSR;
         volume              0.15; // [m^3]
         discharge           no; // *optional
-        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml"; // *optional
         initialTemperature  623.8; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
@@ -76,7 +73,6 @@ reactors
         type                PSR;
         volume              0.15; // [m^3]
         discharge           no; // *optional
-        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml"; // *optional
         initialTemperature  1457.8; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
@@ -97,7 +93,6 @@ reactors
         type                PSR;
         volume              0.15; // [m^3]
         discharge           no; // *optional
-        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml"; // *optional
         initialTemperature  834.6; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
@@ -114,7 +109,6 @@ reactors
         type                PSR;
         volume              0.15; // [m^3]
         discharge           no; // *optional
-        mechanismFile       "<case>/../../data/PAC_kinetics/gri30_plasma.yaml"; // *optional
         initialTemperature  834.6; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
