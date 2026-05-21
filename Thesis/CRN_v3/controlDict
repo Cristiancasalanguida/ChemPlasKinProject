@@ -17,13 +17,13 @@
 // Simulation ends at max(endTime, nPulse*pulsePeriod)
 
 startTime      0.0;    // Simulation start time [s]
-endTime        0.0;    // Simulation end time [s]
-nPulses        10;     // Total number of pulses
+endTime        10.0;    // Simulation end time [s]
+nPulses        0;     // Total number of pulses
 
 // ================ Time Step Parameters ================
 
-dt1            1e-11;   // Time step during the discharge pulse [s]
-dt_max         1e-7;    // Maximum time step allowed [s]
+dt1            1e-6;   // Time step during the discharge pulse [s] 1e-11
+dt_max         1e-4;    // Maximum time step allowed [s] 1e-7
 
 // Adaptive timestep for main time loop 
 pulseExten     1e-5;    // Fast relaxation or pulse influence stage [s]
@@ -31,7 +31,10 @@ NstepInPulse   400;     // Number of time steps in a pulse discharge
 NstepAfPulse   200;     // Number of time steps during pulseExten
 
 dT_max         10.0;    // Maximum temperature increase per step allowed, [K]
-dTdt_min     5.0;   // Force simulation ends when dTdt<dTdt_min
+dTdt_min       1e-6;   // Force simulation ends when dTdt<dTdt_min
+
+// Massflow controller Parameters
+kOutPressure   0.2; // mOut = mIn + kOutPressure*(pIn - pOut) #[kg/s]
 
 // CVODE solver tolerance
 odes
@@ -42,7 +45,7 @@ odes
 
 // ================ Output Log ================
 
-outputFile       "<case>/output_H2O2HE.csv";
+outputFile       "<case>/output_Folcarelli.csv";
 //writeSpecies   all; // Write ALL species
 writeSpecies     E, H2, O2, H, O, OH, O2(A1); // Write selected species
 

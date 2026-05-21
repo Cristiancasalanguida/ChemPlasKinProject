@@ -96,10 +96,68 @@ def solveFull(air_in, fuel_in, parameters, ox_Y, fuel_Y, f_st):
         massFlows[names[i]] = mfr
     return massFlows
 
-def mainSolver(ox_Y, fuel_Y):
+def mainSolver_2(ox_Y, fuel_Y):
     air_in = 0.5
     fuel_in = 0.05
     f_st = 1/8
     parameters = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1] # Placeholder parameters, replace with actual values
     massFlowRates = solveFull(air_in, fuel_in, parameters, ox_Y, fuel_Y, f_st)
     return massFlowRates
+
+def mainSolver(ox_Y, fuel_Y):
+    f_st = 1/8
+    fuel_in = 0.048e-3 # kg/s
+    phi_global = 0.17
+    f = phi_global * f_st
+    air_in = fuel_in / f
+    p1, p2, p3, p4 = [0.189, 0.125, 0.216, 0.099] # Naik
+    # p1, p2, p3, p4 = [0.172, 0.125, 0.216, 0.099] # Creck
+    # p1, p2, p3, p4 = [0.217, 0.125, 0.216, 0.099] # Gotama
+
+    yH2_r1 = fuel_Y['PSR1']
+    yO2_r1 = ox_Y['PSR1']
+    yH2_r2 = fuel_Y['PSR2']
+    yO2_r2 = ox_Y['PSR2']
+    yH2_r3 = fuel_Y['PSR3']
+    yO2_r3 = ox_Y['PSR3']
+    yH2_r5 = fuel_Y['PSR5']
+    yO2_r5 = ox_Y['PSR5']
+
+    mAir_I = air_in * p1 / (1 + p1)
+    mAir_II = air_in - mAir_I
+    mH2 = fuel_in
+
+    mA = fuel_in / (1 + p3)
+    mB = p3 * mAir_I
+    mC = mAir_I / (1+p2)
+
+    K1 = mA * yH2_r1 - (mB + mA + mC -mB) * yH2_r2 # mA * yH2_r1 - (mB + mD) * yH2_r2
+    K2 = mA * yO2_r1 - mC * yO2_r3 - (mB + mA + mC -mB) * yO2_r2 # mA * yO2_r1 - mC * yO2_r3 - (mB + mD) * yO2_r2
+    K3 = 1 - (f_st * yO2_r2 - yH2_r2) / (f_st * yO2_r5 - yH2_r5)
+    mE = (K1 - f_st * K2) / (f_st * yO2_r5 - yH2_r5) / K3
+
+    mD = mA + mC + mE -mB
+    mF = p3 * mA
+    mI = air_in + fuel_in
+    mG = p4 * mI
+    mH = mE + mG + mI - mD - mAir_II
+
+    mOut = mI 
+
+    massFlows = {
+        'airI': mAir_I,
+        'airII': mAir_II,
+        'fuelI': mH2,
+        'out': mOut,
+        'mA': mA,
+        'mB': mB,
+        'mC': mC,
+        'mD': mD,
+        'mE': mE,
+        'mF': mF,
+        'mG': mG,
+        'mH': mH,
+        'mI': mI
+    }
+
+    return massFlows

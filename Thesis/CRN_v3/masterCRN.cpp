@@ -766,6 +766,7 @@ int main(int argc, char *argv[]) {
     const double TGAS_TOLERANCE = readParameter<double>(parameterPath, "TGAS_TOLERANCE");
     const double EN_TOLERANCE = readParameter<double>(parameterPath, "EN_TOLERANCE");
     const double dTdt_min = readParameter<double>(controlDictPath, "dTdt_min");
+    const double kOutPressure = readParameter<double>(controlDictPath, "kOutPressure");
 
     // CRN input parameters: read from crnDict using OpenFOAM-style parser
     auto reactorZones = readReactors(crnDictPath);
@@ -945,7 +946,7 @@ int main(int argc, char *argv[]) {
             T_old = state.gas->temperature();
         }
 
-        // HERE WE CREATE THE MATRIX FOR MASS FLOW CONTROLLERS VALUES.
+        // HERE WE CALCULATE THE MASS FLOW CONTROLLERS VALUES.
         std::map<std::string, double> yFuel, yOx;
         for (const auto& state : reactors) {
             
@@ -1008,6 +1009,9 @@ int main(int argc, char *argv[]) {
                 T_src  = stateStart.gas->temperature();
                 cp_src = stateStart.gas->cp_mass();
 
+                if (configEnd.type == "reservoir") {
+                    mass_transferred += kOutPressure * (stateStart.gas->pressure() - configEnd.pressure) * dt;
+                }
                 n_transferred    = mass_transferred / stateStart.gas->meanMolecularWeight();
                 n_transferred    = std::min(n_transferred, nStart);
                 mass_transferred = n_transferred * stateStart.gas->meanMolecularWeight();

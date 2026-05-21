@@ -15,9 +15,9 @@
 
 // ================ Initial Conditions ================
 
-Temperature      400;      // Initial gas temperature [K]
+Temperature      300;      // Initial gas temperature [K]
 Pressure         101325;   // Initial pressure [Pa]
-CP_or_CV         CP;       // Constant pressure (CP) or constant volume (CV)
+CP_or_CV         CV;       // Constant pressure (CP) or constant volume (CV)
 nonThermal       no;       // No thermal effect, hold temperature as constant
 plasmaHeatModel  Flitti;   // 'default' or 'Flitti' (Flitti A, Pancheshnyi S 2009 model)
 heatLoss         no;       // Include heatLoss model or not
@@ -26,25 +26,25 @@ C0               1.975e7;  // = 1.0/r_dis^2, r_dis: discharge radius; 1.0 is C0 
 // Initial mixture composition (in mole fraction）
 Mixture 
 {
-     H2     0.1667;
-     O2     0.0833;
-     HE     0.75;
+     H2     0.01;
+     O2     0.28;
+     N2     0.71;
 }
 fuelName         H; // H2
 oxName           O; // O2
-electronDens     1e4; // Initial electron number density [#/cm^3]
-inertSpecies     HE;  
+electronDens     1e1; // Initial electron number density [#/cm^3]
+inertSpecies     N2;  
 
 
 // ================ Plasma Parameters ================
 // Species configured by CppBOLOS
-BoltzmannSpecies   H2, O2, HE, HE*, H, O, H2O, O3; 
+BoltzmannSpecies   H2, O2, N2, N2(B3), N2(a1), N2(C3), O2(a1), O(1D), N, N(2D), NO, H, O, H2O, O3; 
 gridType         QuadraticGrid;  // Grid type: 'LinearGrid', 'QuadraticGrid' or 'LogGrid'
 gridSize
 {
      start     0;    // Start value [eV]
-     end       100;  // End value   [eV]
-     points    100;  // Number of points [#]
+     end       60;  // End value   [eV]
+     points    160;  // Number of points [#]
 }
 
 E/N(NRP)         100; // Reduced electric field for the NRP discharges [Td]
@@ -64,8 +64,8 @@ EN_TOLERANCE     0.5; // Absolute tolerance of E/N change [Td]
 
 // ================ Data Files ================
 
-csDataFile       "<case>/../../data/LXCat/bolsigdb_H2O2HE.dat";
-mechFile         "<case>/../../data/PAC_kinetics/ZDPlasKin_kinetics/Mao-H2O2He/H2O2HE_Mao.yaml";
+csDataFile       "<case>/../../data/LXCat/bolsigdb_air_NH3_H2.dat";
+mechFile         "<case>/../../data/PAC_kinetics/gri30_plasma.yaml";
 
 
 
