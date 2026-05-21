@@ -1014,6 +1014,9 @@ int main(int argc, char *argv[]) {
                 }
                 n_transferred    = mass_transferred / stateStart.gas->meanMolecularWeight();
                 n_transferred    = std::min(n_transferred, nStart);
+                if (n_transferred == nStart) {
+                    std::cerr << "[Warning] Mass transfer from '" << mfc.start << "' fully depletes the source reactor. Consider reducing the mass flow rate or increasing the time resolution.\n";
+                }
                 mass_transferred = n_transferred * stateStart.gas->meanMolecularWeight();
 
                 // Accumulate into destination only if it is a reactor (not a reservoir)
