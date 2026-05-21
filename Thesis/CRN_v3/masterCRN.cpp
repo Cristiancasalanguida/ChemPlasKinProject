@@ -1010,7 +1010,7 @@ int main(int argc, char *argv[]) {
                 cp_src = stateStart.gas->cp_mass();
 
                 if (configEnd.type == "reservoir") {
-                    mass_transferred += kOutPressure * (stateStart.gas->pressure() - configEnd.pressure) * dt;
+                    mass_transferred += kOutPressure * (stateStart.gas->pressure() - configEnd.pressure.value()) * dt;
                 }
                 n_transferred    = mass_transferred / stateStart.gas->meanMolecularWeight();
                 n_transferred    = std::min(n_transferred, nStart);
