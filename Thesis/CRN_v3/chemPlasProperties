@@ -61,12 +61,9 @@ pulseWidth       2.e-8; // Pulse width limit [s]
 TGAS_TOLERANCE   0.5; // Absolute tolerance of gas temperature change [K]
 EN_TOLERANCE     0.5; // Absolute tolerance of E/N change [Td]
 
-
 // ================ Data Files ================
 
 csDataFile       "<case>/../../data/LXCat/bolsigdb_air_NH3_H2.dat";
 mechFile         "<case>/../../data/PAC_kinetics/gri30_plasma.yaml";
-
-
 
 // ************************************************************************* //

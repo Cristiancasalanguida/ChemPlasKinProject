@@ -1,0 +1,111 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+|     ____ _                    ____  _           _  ___                      |
+|    / ___| |__   ___ _ __ ___ |  _ \| | __ _ ___| |/ (_)_ __                 |
+|   | |   | '_ \ / _ \ '_ ` _ \| |_) | |/ _` / __| ' /| | '_ \                |
+|   | |___| | | |  __/ | | | | |  __/| | (_| \__ \ . \| | | | |               |
+|    \____|_| |_|\___|_| |_| |_|_|   |_|\__,_|___/_|\_\_|_| |_|               |
+|                                                                             |
+|   A Freeware for Unified Gas-Plasma Kinetics Simulation                     |
+|   Version:      1.2 (Feb 2026)                                              |
+|   License:      GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1              |
+|   Author:       Xiao Shao                                                   |
+|   Organization: King Abdullah University of Science and Technology (KAUST)  |
+|   Contact:      xiao.shao@kaust.edu.sa                                      |
+|   Dict for Chemical Reactor Network made by Cristian Casalanguida           |
+\*---------------------------------------------------------------------------*/
+
+// ================ Reactors and reservoirs ================ 
+reactors
+{
+    PSR1 
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           no; // *optional
+        initialTemperature  1000.0; // Initial Temperature [K] *optional
+        pressure            101325.0; // Initial pressure [Pa] *optional
+        initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
+        composition
+        {
+            O2      0.1340178412132025;  // 0.181; 0.1340178412132025;
+            N2      0.47793577163247103;  // 0.645; 0.47793577163247103;
+            H2      0.38804638715432654;  // 0.174; 0.38804638715432654;
+        }
+    }
+
+    PSR2 
+    {
+        type                PSR;
+        volume              0.15; // [m^3]
+        discharge           no; // *optional
+        initialTemperature  400.0; // Initial Temperature [K] *optional
+        pressure            101325.0; // Initial pressure [Pa] *optional
+        initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
+        composition
+        {
+            O2     0.219;
+            N2     0.781;
+        }
+    }
+
+    
+    airInlet
+    {
+        type        reservoir;
+        composition
+        {
+            O2     0.219;
+            N2     0.781;
+        }
+    }
+
+    fuelInlet
+    {
+        type        reservoir;
+        composition
+        {
+            H2     1.0;
+        }
+    }
+
+    outlet
+    {
+        type        reservoir;
+        composition
+        {
+            N2     1.0;
+        }
+    }
+}
+
+massFlowControllers
+{
+    airI
+    {
+        start   airInlet;
+        end     PSR1;
+        value   0.0;
+    }
+
+    fuelI
+    {
+        start   fuelInlet;
+        end     PSR1;
+        value   0.0;
+    }
+
+    out
+    {
+        start   PSR2;
+        end     outlet;
+        value   0.0;
+    }
+
+    mA
+    {
+        start   PSR1;
+        end     PSR2;
+        value   0.0;
+    }
+
+}

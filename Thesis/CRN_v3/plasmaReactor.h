@@ -8,6 +8,8 @@
 #include "cantera/thermo/ThermoPhase.h"
 #include "cantera/kinetics/Kinetics.h"
 #include "cantera/kinetics/Boltzmann.h"
+#include <fstream>
+#include <filesystem>
 
 namespace Cantera
 {
@@ -265,6 +267,29 @@ public:
                 dYdt[electronIndex] = 0.0;
             }
         }
+
+        // Flow energy terms, following Cantera's reactor formulation:
+        //   CP: m*cp*dT/dt += sum_in[ mdot_in * (h_in - sum_k h_k(T)*Y_k,in) ]
+        //   CV: m*cv*dT/dt += sum_in[ mdot_in * (h_in - sum_k u_k(T)*Y_k,in) ] - mdot_out * p*V/m
+        // h_in is the source specific enthalpy at source temperature; h_k/u_k are the
+        // partial molar enthalpies/internal energies at the current reactor temperature.
+        for (const auto& f : m_inflows) {
+            double e_src_at_T = 0.0; // h or u of the inlet composition at reactor T [J/kg]
+            for (size_t k = 0; k < m_nSpecies; k++) {
+                dYdt[k] += f.mdot_V * (f.Y_src[k] - massFracs[k]) / rho;
+                e_src_at_T += (constPressure ? m_hbar[k] : m_ubar[k])
+                              / m_gas->molecularWeight(k) * f.Y_src[k];
+            }
+            double q_in = f.mdot_V * (f.h_src - e_src_at_T); // [J/m^3/s]
+            *dTdt  += q_in / (rho * (constPressure ? cp : cv));
+            *HE_dot += q_in;
+        }
+        if (!constPressure) {
+            // Outflow flow work: mdot_out * p*V/m = mdot_out/V * p/rho [J/m^3/s]
+            double q_out = m_mdot_out_V * m_gas->pressure() / rho;
+            *dTdt  -= q_out / (rho * cv);
+            *HE_dot -= q_out;
+        }
     }
 
     // Judgment function on density change of CppBOLOS-configured species
@@ -329,8 +354,9 @@ public:
         double sumY = 0.0;
         for (size_t i = 4; i < m_nSpecies + 4; i++) {
             if (y[i] < 0.0) {
-                std::cout << "Warning: Negative mass fraction for species " << m_gas->speciesName(i-4)
-                << " (" << m_gas->massFraction(i-4) << ") " << "corrected to 0." << std::endl;
+                if (y[i] < -1e-15)
+                    negYLog() << "Warning: Negative mass fraction for species " << m_gas->speciesName(i-4)
+                              << " (" << y[i] << ") corrected to 0.\n";
                 y[i] = 0.0;
             }
             if (i != inertSpIndex + 4) {
@@ -361,6 +387,19 @@ public:
     void setConstPD (double pressure, double density) {
         m_pressure = pressure;
         m_density = density;
+    }
+
+    struct FlowTerm {
+        double mdot_V = 0.0;           // ṁ/V [kg/m³/s]
+        std::vector<double> Y_src;     // source mass fractions
+        double T_src = 0.0;            // [K]
+        double h_src = 0.0;            // source specific enthalpy [J/kg]
+    };
+
+    /* ------------------- Function to set mass flow controller ------------------*/
+    void setFlows(std::vector<FlowTerm> inflows, double mdot_out_V) {
+        m_inflows = std::move(inflows);
+        m_mdot_out_V = mdot_out_V;
     }
 
     /* ------------------- Functions to check production rates -------------------*/
@@ -531,6 +570,14 @@ public:
     }
 
 private:
+    static std::ofstream& negYLog() {
+        static std::ofstream log = []() {
+            std::filesystem::create_directories("../output");
+            return std::ofstream("../output/warnings.log", std::ios::app);
+        }();
+        return log;
+    }
+
     // Private member variables, to be used internally.
     shared_ptr<ThermoPhase> m_gas;
     shared_ptr<Kinetics> m_kinetics;
@@ -567,6 +614,9 @@ private:
     std::map<size_t, double> evib_NH3_map;
 
     double eVibN2 = 0.0;
+
+    std::vector<FlowTerm> m_inflows;
+    double m_mdot_out_V = 0.0; // [kg/m^3/s]
 
     // Register plasma energy transfer data
     void setPlasmaEnergyTransfer(const vector<AnyMap>& reactions) {

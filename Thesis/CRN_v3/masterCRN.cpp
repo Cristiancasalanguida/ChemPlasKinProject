@@ -34,7 +34,7 @@
 #include <filesystem>
 
 using namespace Cantera;
-#include "plasmaReactor.h" // "../../src/plasmaReactor.h" for original one
+#include  "plasmaReactor.h" // for original one "../../src/plasmaReactor.h"
 #include "../../src/utilities.h"
 #include "../../include/kinetics/BoltzmannGuard.h"
 
@@ -59,6 +59,9 @@ struct MassFlowControllerDef {
     std::string start;
     std::string end;
     double value = 0.0;
+    double T = 0.0;
+    std::vector<double> comp;
+    double h = 0.0; // specific enthalpy of source [J/kg]
 };
 
 struct ReactorState {
@@ -392,8 +395,8 @@ ReactorState createReactorState(
     }
 
     const std::vector<std::string> speciesNames = state.gas->speciesNames();
-    state.outputFile << "Time(s), T_gas(K), p(Pa), N_gas(#/cm^3)";
-    std::cout << "Writing information of " << name << ":\n" << "Time, T_gas(K), p(Pa), N_gas(#/cm^3)";
+    state.outputFile << "Time(s), T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol)";
+    std::cout << "Writing information of " << name << ":\n" << "Time, T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol),";
     for (const auto& sp : speciesNames) {
         std::cout << ", " << sp;
         const size_t index = state.gas->speciesIndex(sp);
@@ -409,8 +412,8 @@ ReactorState createReactorState(
     std::cout << std::endl;
 
     // Write initial values
-    state.outputFile << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity();
-    std::cout << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity();
+    state.outputFile << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity() << ", " << state.gas->meanMolecularWeight();
+    std::cout << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity() << ", " << state.gas->meanMolecularWeight();
     for (const auto index : state.indexList) {
         double dens = getNumberDens(state.gas, static_cast<size_t>(index));
         state.outputFile << ", " << dens;
@@ -450,7 +453,7 @@ ReservoirState createReservoirState(
             throw std::runtime_error("Failed to open output file for reservoir: " + name);
 
         const std::vector<std::string>& speciesNames = state.gas->speciesNames();
-        state.outputFile << "Time(s), T_gas(K), p(Pa), N_gas(#/cm^3)";
+        state.outputFile << "Time(s), T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol)";
         for (const auto& sp : speciesNames) {
             size_t idx = state.gas->speciesIndex(sp);
             state.indexList.push_back(static_cast<int>(idx));
@@ -460,7 +463,8 @@ ReservoirState createReservoirState(
         // Reservoir state is constant: write initial values once
         state.outputFile << runTime << ", " << state.gas->temperature() << ", "
                          << state.gas->pressure() << ", "
-                         << 1e-6 * Avogadro * state.gas->molarDensity();
+                         << 1e-6 * Avogadro * state.gas->molarDensity() << ", " 
+                         << state.gas->meanMolecularWeight();
         for (const int idx : state.indexList)
             state.outputFile << ", " << getNumberDens(state.gas, static_cast<size_t>(idx));
         state.outputFile << std::endl;
@@ -688,6 +692,8 @@ int main(int argc, char *argv[]) {
     std::string controlDictPath = "../controlDict";       // Default path
     std::string parameterPath = "../chemPlasProperties";  // Default path
     std::string crnDictPath = "../crnDict";        // Default path
+    const std::string massFlowPath = "../output/massflow.csv";
+    std::ofstream massFlowFile(massFlowPath);
 
     // Map string to LogLevel
     std::map<std::string, CppBOLOS::LogLevel> logLevels = {
@@ -771,6 +777,11 @@ int main(int argc, char *argv[]) {
     // CRN input parameters: read from crnDict using OpenFOAM-style parser
     auto reactorZones = readReactors(crnDictPath);
     auto massFlowControllers = readMassFlowControllers(crnDictPath);
+    massFlowFile << "Time(s)";
+    for (const auto& [name, mfc] : massFlowControllers) {
+        massFlowFile << ", " << name << "(kg/s)";
+    }
+    massFlowFile << std::endl;
 
     // Default initialization
     double dt = dt_max;                     // initial time step
@@ -935,7 +946,7 @@ int main(int argc, char *argv[]) {
     // Main time loop
     // const auto dTbelowTeq = readParameter<double>(controlDictPath, "dTbelowTeq");
     // while (runTime < t_end && gas->temperature() < (T_eq - dTbelowTeq)) {
-    while (runTime < t_end && dTdtcheck > dTdt_min) {
+    while (runTime < t_end && (runTime < 2.0 || dTdtcheck > dTdt_min)) { // Do at least two seconds
         std::ostringstream oss; // Format output digit
         oss << "\nrunTime [s]: " << std::scientific << std::setprecision(9) << runTime;
         // TIMESTEP FUNCTION TO ITERATE FROM HERE
@@ -950,31 +961,57 @@ int main(int argc, char *argv[]) {
         std::map<std::string, double> yFuel, yOx;
         for (const auto& state : reactors) {
             
-            yFuel[state.name] = state.gas->massFraction(state.gas->speciesIndex(FUELNAME));
-            yOx[state.name] = state.gas->massFraction(state.gas->speciesIndex(OXNAME));
+            // yFuel[state.name] = state.gas->massFraction(state.gas->speciesIndex(FUELNAME));
+            // yOx[state.name] = state.gas->massFraction(state.gas->speciesIndex(OXNAME));
             
-            // yFuel[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(FUELNAME));
-            // yOx[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(OXNAME));
+            yFuel[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(FUELNAME));
+            yOx[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(OXNAME));
         }
 
         for (const auto& state : reservoirs) {
             
-            yFuel[state.name] = state.gas->massFraction(state.gas->speciesIndex(FUELNAME));
-            yOx[state.name] = state.gas->massFraction(state.gas->speciesIndex(OXNAME));
+            // yFuel[state.name] = state.gas->massFraction(state.gas->speciesIndex(FUELNAME));
+            // yOx[state.name] = state.gas->massFraction(state.gas->speciesIndex(OXNAME));
             
-            // yFuel[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(FUELNAME));
-            // yOx[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(OXNAME));
+            yFuel[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(FUELNAME));
+            yOx[state.name] = state.gas->elementalMassFraction(state.gas->elementIndex(OXNAME));
         }
 
         std::map<std::string, double> massFlowRates = pySession.call(yOx, yFuel);
 
+        massFlowFile << runTime;
         for (auto& [name, mfc] : massFlowControllers) {
             auto it = massFlowRates.find(name);
             if (it == massFlowRates.end())
                 throw std::runtime_error("massFlowSolver: no key '" + name + "' in Python output; check controller names in crnDict match massflowsolver.py");
             mfc.value = it->second;
-        }
+            massFlowFile << ", " << mfc.value;
+            
+            ReactorZoneDef& configStart = reactorZones.at(mfc.start);
+            shared_ptr<ThermoPhase> srcGas = (configStart.type != "reservoir")
+                ? reactors[configStart.indexState].gas
+                : reservoirs[configStart.indexState].gas;
 
+            ReactorZoneDef& configEnd = reactorZones.at(mfc.end);
+            shared_ptr<ThermoPhase> endGas = (configEnd.type != "reservoir")
+                ? reactors[configEnd.indexState].gas
+                : reservoirs[configEnd.indexState].gas;
+
+            const size_t nSpec = endGas->nSpecies();
+            std::vector<double> Y_src(nSpec, 0.0);
+            for (size_t k = 0; k < nSpec; k++) {
+                size_t k_src = srcGas->speciesIndex(endGas->speciesName(k));
+                Y_src[k] = (k_src != Cantera::npos) ? srcGas->massFraction(k_src) : 0.0;
+            }
+
+            mfc.T = srcGas->temperature();
+            mfc.comp = Y_src;
+            mfc.h = srcGas->enthalpy_mass();
+            
+        }
+        massFlowFile << std::endl;
+
+        /* //REMOVED FOR INTEGRATOR
         // Update density and fractions with mass flow controllers.
         // Two-pass approach: pass 1 reads source states, updates source reactors immediately
         // (density-only removal), and accumulates contributions per destination reactor.
@@ -1035,10 +1072,25 @@ int main(int argc, char *argv[]) {
                         accum.sumBoltzXn[sp] += X_src * n_transferred;
                     accum.sumMass    += mass_transferred;
                     accum.sumN       += n_transferred;
-                    accum.sumCpMassT += cp_src * mass_transferred * T_src;
+                    accum.sumCpMassT += cp_src * mass_transferred * (T_src - stateEnd.gas->temperature());
                     accum.sumCpMass  += cp_src * mass_transferred;
                 }
-                
+                //
+                //const size_t nSpec = stateStart.gas->nSpecies();
+                //EndAccum& accum = endAccum[mfc.start];
+                //if (accum.sumYmass.empty()) accum.sumYmass.assign(nSpec, 0.0);
+                //
+                //for (size_t k = 0; k < nSpec; k++) {
+                //    size_t k_src = stateStart.gas->speciesIndex(stateStart.gas->speciesName(k));
+                //    accum.sumYmass[k] -= ((k_src != Cantera::npos) ? stateStart.gas->massFraction(k_src) : 0.0)
+                //                        * mass_transferred;
+                //}
+                //for (const auto& [sp, X_src] : *stateStart.boltzmannSpecies)
+                //    accum.sumBoltzXn[sp] -= X_src * n_transferred;
+                //accum.sumMass    -= mass_transferred;
+                //accum.sumN       -= n_transferred;
+                //accum.sumCpMassT -= cp_src * mass_transferred * T_src;
+                //accum.sumCpMass  -= cp_src * mass_transferred;
                 // Always update source density (regardless of destination type)
                 double new_density_start = (mass_start - mass_transferred) / configStart.volume;
                 stateStart.gas->setState_TD(T_src, new_density_start);
@@ -1073,7 +1125,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // --- Pass 2: apply all accumulated contributions to each destination reactor ---
+        // --- Pass 2: apply all accumulated contributions to each reactor ---
         for (auto& [endName, accum] : endAccum) {
             if (accum.sumMass <= 0.0) continue;
 
@@ -1100,8 +1152,12 @@ int main(int argc, char *argv[]) {
             double mass_total = mass_end + accum.sumMass;
             std::vector<double> Y_new(nSpec);
             for (size_t k = 0; k < nSpec; k++)
-                Y_new[k] = (stateEnd.gas->massFraction(k) * mass_end + accum.sumYmass[k]) / mass_total;
-
+                if (mass_total > 0.0) {
+                    Y_new[k] = (stateEnd.gas->massFraction(k) * mass_end + accum.sumYmass[k]) / mass_total;
+                } else {
+                    mass_total = SMALL; // prevent negative or zero mass_total due to numerical issues
+                    Y_new[k] = stateEnd.gas->massFraction(k); // fallback to old composition if mass_total is zero or negative (should not happen)
+                }
             double new_density_end = mass_total / configEnd.volume;
             stateEnd.gas->setMassFractions_NoNorm(Y_new.data());
             stateEnd.gas->setState_TD(T_end, new_density_end);
@@ -1109,6 +1165,7 @@ int main(int argc, char *argv[]) {
             stateEnd.boltzmannState.density = *stateEnd.boltzmannSpecies;
             stateEnd.integrator->reinitialize(runTime, *stateEnd.odes);
         }
+        // REMOVED FOR INTEGRATOR */
     
         double dt_old = dt;
         dt = dt_max; // reset dt to max at the beginning of each loop, will be updated in findTimeStep
@@ -1227,18 +1284,46 @@ int main(int argc, char *argv[]) {
                             << "\n";
                 //
 
+                // NEW PART TO INTEGRATE MASS FLOW CONTROLLERS
+                std::vector<ChemPlasReactor::FlowTerm> inflows;
+                double mdot_in = 0.0;
+                double mdot_out = 0.0;
+                for (auto& [name, mfc]: massFlowControllers) {
+                    if (mfc.end == state.name) {
+                        inflows.push_back({mfc.value / config.volume, mfc.comp, mfc.T, mfc.h});
+                        mdot_in += mfc.value;
+                    }
+                    if (mfc.start == state.name) {
+                        mdot_out += mfc.value;
+                    }
+                }
+                state.odes->setFlows(inflows, mdot_out / config.volume);
+                state.integrator->reinitialize(runTimeOld, *state.odes);
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                 state.integrator->integrate(runTime);
                 state.odes->updateState(state.integrator->solution());
-            
+
+                
+                // For CV reactors: update m_density to account for net mass flux.
+                // For CP reactors: density follows the EOS automatically — no update needed.
+                if (!state.odes->constPressure) {
+                    double net_mdot_V = (mdot_in - mdot_out) / config.volume;
+                    double rho_new = state.gas->density() + net_mdot_V * dt;
+                    state.gas->setState_TD(state.gas->temperature(), std::max(rho_new, 1e-6));
+                    state.odes->setConstPD(state.gas->pressure(), std::max(rho_new, 1e-6));
+                }
+                
+
                 dT = std::abs(state.gas->temperature() - T_old);
 
                 // Write values
-                state.outputFile << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity();
-                std::cout << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity();
+                state.outputFile << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity() << ", " << state.gas->meanMolecularWeight();
+                // std::cout << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity() << ", " << state.gas->meanMolecularWeight();
                 for (const auto index : state.indexList) {
                     double dens = getNumberDens(state.gas, static_cast<size_t>(index));
                     state.outputFile << ", " << dens;
-                    std::cout << ", " << dens;
+                    // std::cout << ", " << dens;
                 }
                 
                 std::cout << std::endl;
