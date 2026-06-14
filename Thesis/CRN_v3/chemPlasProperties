@@ -15,7 +15,7 @@
 
 // ================ Initial Conditions ================
 
-Temperature      300;      // Initial gas temperature [K]
+Temperature      310;      // Initial gas temperature [K]
 Pressure         101325;   // Initial pressure [Pa]
 CP_or_CV         CV;       // Constant pressure (CP) or constant volume (CV)
 nonThermal       no;       // No thermal effect, hold temperature as constant

@@ -17,13 +17,13 @@
 // Simulation ends at max(endTime, nPulse*pulsePeriod)
 
 startTime      0.0;    // Simulation start time [s]
-endTime        30.0;    // Simulation end time [s]
+endTime        50.0;    // Simulation end time [s]
 nPulses        0;     // Total number of pulses
 
 // ================ Time Step Parameters ================
 
 dt1            1e-11;   // Time step during the discharge pulse [s] 1e-11
-dt_max         1e-3;    // Maximum time step allowed [s] 1e-7
+dt_max         1e-4;    // Maximum time step allowed [s] 1e-7
 
 // Adaptive timestep for main time loop 
 pulseExten     1e-5;    // Fast relaxation or pulse influence stage [s]
@@ -39,8 +39,8 @@ kOutPressure   0.0; // mOut = mIn + kOutPressure*(pIn - pOut) #[kg/s]
 // CVODE solver tolerance
 odes
 {
-      reltol      1e-9;   // Relative tolerance
-      abstol      1e-15;  // Absolute tolerance
+      reltol      1e-6;   // Relative tolerance
+      abstol      1e-11;  // Absolute tolerance
 }
 
 // ================ Output Log ================

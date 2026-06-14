@@ -4,6 +4,7 @@ Code for solving mass flow rate in a CRN system.
 
 import numpy as np
 import scipy as sp
+from pathlib import Path
 
 # SICCA FUNCTIONS
 def solveFull(air_in, fuel_in, parameters, ox_Y, fuel_Y, f_st):
@@ -174,19 +175,14 @@ def mainSolverFOLC(ox_Y, fuel_Y):
 
 #MADONIA ET AL. FUNCTIONS
 def mainSolver(ox_Y, fuel_Y):
+    params_file = Path(__file__).parent / "massflow_params.txt"
+    with open(params_file) as f:
+        lines = f.readlines()
+    air_in     = float(lines[0].strip())
+    phi_global = float(lines[1].strip())
+
     f_st_air = 1/34.3
     f_st_O2 = 1/8.0
-    # 1 !!!!!!!!!!!!!!!!!!!!
-    air_in = 255/3600 # kg/s
-    # 2 !!!!!!!!!!!!!!!!!!!!
-    # air_in = 180/3600 # kg/s
-    # 3 !!!!!!!!!!!!!!!!!!!!
-    # air_in = 116/3600 # kg/s
-
-    phi_global = 0.3
-    # phi_global = 0.4
-    # phi_global = 0.5
-    # phi_global = 0.6
 
     parameters = [0.57, 0.306, 0.708, 0.293, 0.141, 0.960, 0.278, 0.142, 0.130] # theta1 to theta9 Naik
     # parameters = [0.572, 0.312, 0.718, 0.280, 0.146, 0.912, 0.288, 0.148, 0.129] # theta1 to theta9 Creck
@@ -267,10 +263,10 @@ def mainSolver(ox_Y, fuel_Y):
     mN = (1 - theta8) * (mD + mI)                           # Eq. 23j
     mOut = mM + mN
 
-    massflows = np.array([m1, m2FLSW, m2ORZ, mA, mB, mC, mD, mE, mF, mG, mH, mI, mM, mN, mOut])
+    # massflows = np.array([m1, m2FLSW, m2ORZ, mA, mB, mC, mD, mE, mF, mG, mH, mI, mM, mN, mOut])
 
     massFlows = {
-        'm1': mAir_I,
+        'm1': m1,
         'm2FLSW': m2FLSW,
         'm2ORZ': m2ORZ,
         'mA': mA,
@@ -281,7 +277,7 @@ def mainSolver(ox_Y, fuel_Y):
         'mF': mF,
         'mG': mG,
         'mH': mH,
-        'mI': mI
+        'mI': mI,
         'mM': mM,
         'mN': mN
     }

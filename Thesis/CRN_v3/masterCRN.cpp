@@ -442,33 +442,31 @@ ReservoirState createReservoirState(
     std::cout << "Reservoir '" << name << "': T=" << config.initialTemperature.value()
               << " K, p=" << config.pressure.value() << " Pa, M=" << state.gas->meanMolecularWeight() << " kg/kmol\n";
 
-    const std::string outputPath = config.outputFile.value_or("");
-    if (!outputPath.empty()) {
+    const std::string outputPath = config.outputFile.value_or("../output/" + name + ".csv");
+    state.outputFile.open(outputPath);
+    if (!state.outputFile.is_open()) {
+        std::filesystem::create_directories(std::filesystem::path(outputPath).parent_path());
         state.outputFile.open(outputPath);
-        if (!state.outputFile.is_open()) {
-            std::filesystem::create_directories(std::filesystem::path(outputPath).parent_path());
-            state.outputFile.open(outputPath);
-        }
-        if (!state.outputFile.is_open())
-            throw std::runtime_error("Failed to open output file for reservoir: " + name);
-
-        const std::vector<std::string>& speciesNames = state.gas->speciesNames();
-        state.outputFile << "Time(s), T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol)";
-        for (const auto& sp : speciesNames) {
-            size_t idx = state.gas->speciesIndex(sp);
-            state.indexList.push_back(static_cast<int>(idx));
-            state.outputFile << ", " << sp;
-        }
-        state.outputFile << std::endl;
-        // Reservoir state is constant: write initial values once
-        state.outputFile << runTime << ", " << state.gas->temperature() << ", "
-                         << state.gas->pressure() << ", "
-                         << 1e-6 * Avogadro * state.gas->molarDensity() << ", " 
-                         << state.gas->meanMolecularWeight();
-        for (const int idx : state.indexList)
-            state.outputFile << ", " << getNumberDens(state.gas, static_cast<size_t>(idx));
-        state.outputFile << std::endl;
     }
+    if (!state.outputFile.is_open())
+        throw std::runtime_error("Failed to open output file for reservoir: " + name);
+
+    const std::vector<std::string>& speciesNames = state.gas->speciesNames();
+    state.outputFile << "Time(s), T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol)";
+    for (const auto& sp : speciesNames) {
+        size_t idx = state.gas->speciesIndex(sp);
+        state.indexList.push_back(static_cast<int>(idx));
+        state.outputFile << ", " << sp;
+    }
+    state.outputFile << std::endl;
+    // Write initial reservoir state
+    state.outputFile << runTime << ", " << state.gas->temperature() << ", "
+                     << state.gas->pressure() << ", "
+                     << 1e-6 * Avogadro * state.gas->molarDensity() << ", "
+                     << state.gas->meanMolecularWeight();
+    for (const int idx : state.indexList)
+        state.outputFile << ", " << getNumberDens(state.gas, static_cast<size_t>(idx));
+    state.outputFile << std::endl;
 
     return state;
 }
@@ -1011,162 +1009,47 @@ int main(int argc, char *argv[]) {
         }
         massFlowFile << std::endl;
 
-        /* //REMOVED FOR INTEGRATOR
-        // Update density and fractions with mass flow controllers.
-        // Two-pass approach: pass 1 reads source states, updates source reactors immediately
-        // (density-only removal), and accumulates contributions per destination reactor.
-        // Pass 2 applies all accumulated contributions simultaneously, so multiple inflows
-        // to the same destination reactor are mixed correctly in a single operation.
-        struct EndAccum {
-            std::vector<double> sumYmass;             // Σ(Y_src[k] * mass_transferred)
-            double sumMass    = 0.0;                  // Σ(mass_transferred)            [kg]
-            std::map<std::string, double> sumBoltzXn; // Σ(X_boltz_src * n_transferred)
-            double sumN       = 0.0;                  // Σ(n_transferred)               [kmol]
-            double sumCpMassT = 0.0;                  // Σ(cp_src * mass_transferred * T_src) [J]
-            double sumCpMass  = 0.0;                  // Σ(cp_src * mass_transferred)   [J/K]
-        };
-        std::map<std::string, EndAccum> endAccum;
+        // For each reservoir that receives inflows, compute the mixed state from
+        // all contributing mass flows (ignoring the existing reservoir content).
+        {
+            struct ResAccum {
+                std::vector<double> sumYm; // Σ(Y_src[k] * mdot) per species k
+                double sumM  = 0.0;        // Σ(mdot) [kg/s]
+                double sumHM = 0.0;        // Σ(h_src * mdot) [J/s]
+            };
+            std::map<std::string, ResAccum> resAccum;
 
-        // --- Pass 1: read source states, update source reactors, accumulate for destinations ---
-        for (auto& [name, mfc] : massFlowControllers) {
-            double mass_transferred = mfc.value * dt; // [kg]
-            if (mass_transferred < 0.0)
-                std::cerr << "[Warning] Negative mass transfer for controller '" << name
-                          << "' (" << mass_transferred << " kg). Check massflowsolver sign convention.\n";
+            for (const auto& [name, mfc] : massFlowControllers) {
+                ReactorZoneDef& configEnd = reactorZones.at(mfc.end);
+                if (configEnd.type != "reservoir" || mfc.value <= 0.0) continue;
 
-            ReactorZoneDef& configStart = reactorZones.at(mfc.start);
-            ReactorZoneDef& configEnd   = reactorZones.at(mfc.end);
+                ReservoirState& resEnd = reservoirs[configEnd.indexState];
+                const size_t nSpec = resEnd.gas->nSpecies();
+                ResAccum& accum = resAccum[mfc.end];
+                if (accum.sumYm.empty()) accum.sumYm.assign(nSpec, 0.0);
 
-            double T_src = 0.0, cp_src = 0.0, n_transferred = 0.0;
+                for (size_t k = 0; k < nSpec; k++)
+                    accum.sumYm[k] += mfc.comp[k] * mfc.value;
+                accum.sumM  += mfc.value;
+                accum.sumHM += mfc.h * mfc.value;
+            }
 
-            if (configStart.type != "reservoir") {
-                ReactorState& stateStart = reactors[configStart.indexState];
-                double nStart     = stateStart.gas->molarDensity() * configStart.volume; // [kmol]
-                double mass_start = nStart * stateStart.gas->meanMolecularWeight();                // [kg]
-                T_src  = stateStart.gas->temperature();
-                cp_src = stateStart.gas->cp_mass();
+            for (auto& [resName, accum] : resAccum) {
+                if (accum.sumM <= 0.0) continue;
+                ReactorZoneDef& configRes = reactorZones.at(resName);
+                ReservoirState& resState  = reservoirs[configRes.indexState];
+                const size_t nSpec = resState.gas->nSpecies();
 
-                if (configEnd.type == "reservoir") {
-                    mass_transferred += kOutPressure * (stateStart.gas->pressure() - configEnd.pressure.value()) * dt;
-                }
-                n_transferred    = mass_transferred / stateStart.gas->meanMolecularWeight();
-                n_transferred    = std::min(n_transferred, nStart);
-                if (n_transferred == nStart) {
-                    std::cerr << "[Warning] Mass transfer from '" << mfc.start << "' fully depletes the source reactor. Consider reducing the mass flow rate or increasing the time resolution.\n";
-                }
-                mass_transferred = n_transferred * stateStart.gas->meanMolecularWeight();
+                double h_mix = accum.sumHM / accum.sumM;
+                std::vector<double> Y_mix(nSpec);
+                for (size_t k = 0; k < nSpec; k++)
+                    Y_mix[k] = accum.sumYm[k] / accum.sumM;
 
-                // Accumulate into destination only if it is a reactor (not a reservoir)
-                if (configEnd.type != "reservoir") {
-                    const ReactorState& stateEnd = reactors[configEnd.indexState];
-                    const size_t nSpec = stateEnd.gas->nSpecies();
-                    EndAccum& accum = endAccum[mfc.end];
-                    if (accum.sumYmass.empty()) accum.sumYmass.assign(nSpec, 0.0);
-
-                    for (size_t k = 0; k < nSpec; k++) {
-                        size_t k_src = stateStart.gas->speciesIndex(stateEnd.gas->speciesName(k));
-                        accum.sumYmass[k] += ((k_src != Cantera::npos) ? stateStart.gas->massFraction(k_src) : 0.0)
-                                            * mass_transferred;
-                    }
-                    for (const auto& [sp, X_src] : *stateStart.boltzmannSpecies)
-                        accum.sumBoltzXn[sp] += X_src * n_transferred;
-                    accum.sumMass    += mass_transferred;
-                    accum.sumN       += n_transferred;
-                    accum.sumCpMassT += cp_src * mass_transferred * (T_src - stateEnd.gas->temperature());
-                    accum.sumCpMass  += cp_src * mass_transferred;
-                }
-                //
-                //const size_t nSpec = stateStart.gas->nSpecies();
-                //EndAccum& accum = endAccum[mfc.start];
-                //if (accum.sumYmass.empty()) accum.sumYmass.assign(nSpec, 0.0);
-                //
-                //for (size_t k = 0; k < nSpec; k++) {
-                //    size_t k_src = stateStart.gas->speciesIndex(stateStart.gas->speciesName(k));
-                //    accum.sumYmass[k] -= ((k_src != Cantera::npos) ? stateStart.gas->massFraction(k_src) : 0.0)
-                //                        * mass_transferred;
-                //}
-                //for (const auto& [sp, X_src] : *stateStart.boltzmannSpecies)
-                //    accum.sumBoltzXn[sp] -= X_src * n_transferred;
-                //accum.sumMass    -= mass_transferred;
-                //accum.sumN       -= n_transferred;
-                //accum.sumCpMassT -= cp_src * mass_transferred * T_src;
-                //accum.sumCpMass  -= cp_src * mass_transferred;
-                // Always update source density (regardless of destination type)
-                double new_density_start = (mass_start - mass_transferred) / configStart.volume;
-                stateStart.gas->setState_TD(T_src, new_density_start);
-                stateStart.odes->setConstPD(stateStart.gas->pressure(), new_density_start);
-                stateStart.integrator->reinitialize(runTime, *stateStart.odes);
-            } else {
-
-                if (configEnd.type != "reservoir") {
-                    // Reservoir source: infinite supply at fixed state, no density update
-                    const ReservoirState& stateStart = reservoirs[configStart.indexState];
-                    T_src  = stateStart.gas->temperature();
-                    cp_src = stateStart.gas->cp_mass();
-                    n_transferred = mass_transferred / stateStart.gas->meanMolecularWeight(); // no clamping
-
-                    const ReactorState& stateEnd = reactors[configEnd.indexState];
-                    const size_t nSpec = stateEnd.gas->nSpecies();
-                    EndAccum& accum = endAccum[mfc.end];
-                    if (accum.sumYmass.empty()) accum.sumYmass.assign(nSpec, 0.0);
-
-                    for (size_t k = 0; k < nSpec; k++) {
-                        size_t k_src = stateStart.gas->speciesIndex(stateEnd.gas->speciesName(k));
-                        accum.sumYmass[k] += ((k_src != Cantera::npos) ? stateStart.gas->massFraction(k_src) : 0.0)
-                                            * mass_transferred;
-                    }
-                    for (const auto& [sp, X_src] : *stateStart.boltzmannSpecies)
-                        accum.sumBoltzXn[sp] += X_src * n_transferred;
-                    accum.sumMass    += mass_transferred;
-                    accum.sumN       += n_transferred;
-                    accum.sumCpMassT += cp_src * mass_transferred * T_src;
-                    accum.sumCpMass  += cp_src * mass_transferred;
-                }
+                resState.gas->setMassFractions(Y_mix.data());
+                resState.gas->setState_HP(h_mix, configRes.pressure.value());
             }
         }
 
-        // --- Pass 2: apply all accumulated contributions to each reactor ---
-        for (auto& [endName, accum] : endAccum) {
-            if (accum.sumMass <= 0.0) continue;
-
-            ReactorZoneDef& configEnd = reactorZones.at(endName);
-            ReactorState& stateEnd    = reactors[configEnd.indexState];
-            const size_t nSpec        = stateEnd.gas->nSpecies();
-
-            double nEnd     = stateEnd.gas->molarDensity() * configEnd.volume; // [kmol]
-            double mass_end = nEnd * stateEnd.gas->meanMolecularWeight();                // [kg]
-            double T_end    = stateEnd.gas->temperature();
-            double cp_end   = stateEnd.gas->cp_mass();
-
-            // Mix Boltzmann species mole fractions (mole-weighted)
-            for (auto& [sp, X_end] : *stateEnd.boltzmannSpecies) {
-                double sumX = accum.sumBoltzXn.count(sp) ? accum.sumBoltzXn.at(sp) : 0.0;
-                X_end = (X_end * nEnd + sumX) / (nEnd + accum.sumN);
-            }
-
-            // Mix temperature via enthalpy balance
-            T_end = (cp_end * mass_end * T_end + accum.sumCpMassT)
-                  / (cp_end * mass_end + accum.sumCpMass);
-
-            // Mix all K species by mass fraction
-            double mass_total = mass_end + accum.sumMass;
-            std::vector<double> Y_new(nSpec);
-            for (size_t k = 0; k < nSpec; k++)
-                if (mass_total > 0.0) {
-                    Y_new[k] = (stateEnd.gas->massFraction(k) * mass_end + accum.sumYmass[k]) / mass_total;
-                } else {
-                    mass_total = SMALL; // prevent negative or zero mass_total due to numerical issues
-                    Y_new[k] = stateEnd.gas->massFraction(k); // fallback to old composition if mass_total is zero or negative (should not happen)
-                }
-            double new_density_end = mass_total / configEnd.volume;
-            stateEnd.gas->setMassFractions_NoNorm(Y_new.data());
-            stateEnd.gas->setState_TD(T_end, new_density_end);
-            stateEnd.odes->setConstPD(stateEnd.gas->pressure(), new_density_end);
-            stateEnd.boltzmannState.density = *stateEnd.boltzmannSpecies;
-            stateEnd.integrator->reinitialize(runTime, *stateEnd.odes);
-        }
-        // REMOVED FOR INTEGRATOR */
-    
         double dt_old = dt;
         dt = dt_max; // reset dt to max at the beginning of each loop, will be updated in findTimeStep
         for (size_t idx = 0; idx < reactors.size(); idx++) {
@@ -1372,6 +1255,17 @@ int main(int argc, char *argv[]) {
                 }
             }
             state.boltzmannState.density = *state.boltzmannSpecies;
+        }
+
+        // Write updated reservoir states at current time step
+        for (auto& res : reservoirs) {
+            res.outputFile << runTime << ", " << res.gas->temperature() << ", "
+                           << res.gas->pressure() << ", "
+                           << 1e-6 * Avogadro * res.gas->molarDensity() << ", "
+                           << res.gas->meanMolecularWeight();
+            for (const int idx : res.indexList)
+                res.outputFile << ", " << getNumberDens(res.gas, static_cast<size_t>(idx));
+            res.outputFile << std::endl;
         }
 
         dTdtcheck = *std::max_element(dTdt_vec.begin(), dTdt_vec.end());
