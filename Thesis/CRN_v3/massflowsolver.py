@@ -178,8 +178,10 @@ def mainSolver(ox_Y, fuel_Y):
     params_file = Path(__file__).parent / "massflow_params.txt"
     with open(params_file) as f:
         lines = f.readlines()
-    air_in     = float(lines[0].strip())
-    phi_global = float(lines[1].strip())
+    #air_in     = float(lines[0].strip())
+    #phi_global = float(lines[1].strip())
+    air_in     = 116/3600 # kg/s
+    phi_global = 0.3
 
     f_st_air = 1/34.3
     f_st_O2 = 1/8.0
@@ -214,8 +216,9 @@ def mainSolver(ox_Y, fuel_Y):
     zO2_FLAX = ox_Y['FLAX']
     zH2_IRZ = fuel_Y['IRZ']
     zO2_IRZ = ox_Y['IRZ']
-    zH2_res2 = yH2r2
-    zO2_res2 = yO2r2
+    zH2_res2 = fuel_Y['resII']
+    zO2_res2 = ox_Y['resII']
+
 
     denThetas = (theta5 * theta6 * theta7 * theta8 
                 - theta5 * theta6 * theta8

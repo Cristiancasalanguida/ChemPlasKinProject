@@ -3,13 +3,13 @@ import shutil
 import subprocess
 from pathlib import Path
 
-air_in_values     = [116/3600, 180/3600, 255/3600]  # in kg/s
-phi_global_values = [0.30, 0.40, 0.50, 0.60]
+air_in_values     = [116/3600, 180/3600, 255/3600]  # in kg/s 
+phi_global_values = [0.30, 0.40, 0.50, 0.60] # 
 
 SCRIPT_DIR    = Path(__file__).parent
 base          = Path("/home/cristiancasalanguida/Thesis/CRN_results/CRN_Mad")
-folders       = ["air_116_T_700", "air_180_T_450", "air_255_T_310"]
-phis          = ["phi030", "phi040", "phi050", "phi060"]
+folders       = ["air_116_T_700", "air_180_T_450", "air_255_T_310"] # 
+phis          = ["phi030", "phi040", "phi050", "phi060"] # 
 
 crndict_dst   = SCRIPT_DIR / "crnDict"
 output_src    = SCRIPT_DIR / "output"
@@ -19,7 +19,8 @@ params_path   = SCRIPT_DIR / "massflow_params.txt"
 for folder, air_in in zip(folders, air_in_values):
     for phi, phi_global in zip(phis, phi_global_values):
         dir_phi = base / folder / phi
-        print(f"\n=== {folder} / {phi} ===")
+        print("="*75)
+        print(f"Running ChemPlasKin for {dir_phi} with air_in={air_in*3600:.4f} and phi_global={phi_global:.4f}")
 
         params_path.write_text(f"{air_in:.4f}\n{phi_global:.4f}\n")
         shutil.copy(dir_phi / "crnDict_MAD", crndict_dst)
@@ -30,6 +31,8 @@ for folder, air_in in zip(folders, air_in_values):
         if output_dst.exists():
             shutil.rmtree(output_dst)
         shutil.copytree(output_src, output_dst)
+        shutil.copy(params_path, output_dst / "massflow_params.txt")
 
         crndict_dst.unlink()
         print(f"Done: results saved to {output_dst}")
+        print("="*75)

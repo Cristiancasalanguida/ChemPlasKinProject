@@ -34,6 +34,9 @@
 #include <filesystem>
 
 using namespace Cantera;
+
+static bool g_verbose = false;
+
 #include  "plasmaReactor.h" // for original one "../../src/plasmaReactor.h"
 #include "../../src/utilities.h"
 #include "../../include/kinetics/BoltzmannGuard.h"
@@ -357,15 +360,15 @@ ReactorState createReactorState(
         auto C0 = readParameter<double>(parameterPath, "C0");
         state.odes->T0 = initialTemperature;
         state.odes->C0 = C0;
-        std::cout << "Start with constant-volume PAC reactor since heat loss model is on."<< std::endl;
+        if (g_verbose) std::cout << "Start with constant-volume PAC reactor since heat loss model is on."<< std::endl;
         state.odes->constPressure = false;
     } else
     {
         if (readParameter<string>(parameterPath, "CP_or_CV") == "CP"){
-            std::cout << "Start with constant-pressure PAC reactor"<< std::endl;
+            if (g_verbose) std::cout << "Start with constant-pressure PAC reactor"<< std::endl;
             state.odes->constPressure = true;
         } else {
-            std::cout << "Start with constant-volume PAC reactor"<< std::endl;
+            if (g_verbose) std::cout << "Start with constant-volume PAC reactor"<< std::endl;
             state.odes->constPressure = false;
         }
     }
@@ -396,9 +399,9 @@ ReactorState createReactorState(
 
     const std::vector<std::string> speciesNames = state.gas->speciesNames();
     state.outputFile << "Time(s), T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol)";
-    std::cout << "Writing information of " << name << ":\n" << "Time, T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol),";
+    if (g_verbose) std::cout << "Writing information of " << name << ":\n" << "Time, T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol)";
     for (const auto& sp : speciesNames) {
-        std::cout << ", " << sp;
+        if (g_verbose) std::cout << ", " << sp;
         const size_t index = state.gas->speciesIndex(sp);
         if (index < std::numeric_limits<size_t>::max()) {
             state.indexList.push_back(static_cast<int>(index));
@@ -409,19 +412,19 @@ ReactorState createReactorState(
     }
     state.outputFile << ", Power_input(W/cm^3), Energy_deposited(mJ/cm^3)";
     state.outputFile << std::endl;
-    std::cout << std::endl;
+    if (g_verbose) std::cout << std::endl;
 
     // Write initial values
     state.outputFile << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity() << ", " << state.gas->meanMolecularWeight();
-    std::cout << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity() << ", " << state.gas->meanMolecularWeight();
+    if (g_verbose) std::cout << runTime << ", " << state.gas->temperature() << ", " << state.gas->pressure() << ", " << 1e-6 * Avogadro * state.gas->molarDensity() << ", " << state.gas->meanMolecularWeight();
     for (const auto index : state.indexList) {
         double dens = getNumberDens(state.gas, static_cast<size_t>(index));
         state.outputFile << ", " << dens;
-        std::cout << ", " << dens;
+        if (g_verbose) std::cout << ", " << dens;
     }
     state.outputFile << ", " << 0.0 << ", " << 0.0;
     state.outputFile << std::endl;
-    std::cout << std::endl;
+    if (g_verbose) std::cout << std::endl;
 
     return state;
 }
@@ -439,7 +442,7 @@ ReservoirState createReservoirState(
     state.gas = state.sol->thermo();
     state.gas->setState_TPX(config.initialTemperature.value(), config.pressure.value(), *config.composition);
 
-    std::cout << "Reservoir '" << name << "': T=" << config.initialTemperature.value()
+    if (g_verbose) std::cout << "Reservoir '" << name << "': T=" << config.initialTemperature.value()
               << " K, p=" << config.pressure.value() << " Pa, M=" << state.gas->meanMolecularWeight() << " kg/kmol\n";
 
     const std::string outputPath = config.outputFile.value_or("../output/" + name + ".csv");
@@ -474,6 +477,7 @@ ReservoirState createReservoirState(
 void findTimeStep(
     ReactorState& state, ReactorZoneDef& config,
     double runTime,
+    double startTime,
     double SMALL,
     double pulsePeriod, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
     double pulseWidth, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
@@ -501,26 +505,26 @@ void findTimeStep(
     double dt_ig = dt_max; // ignition delay time, to be calculated based on dT/dt
     if (dT > dT_max && dTdt > 1000) {
         dt_ig = std::min(dT_max/dTdt, dt_max); // reduce time step to capture ignition
-        std::cout << "!!!!!!!!!!IGNITION DETECTED!!!!!!!!!!" << std::endl;
+        std::cout << "\n!!!!!!!!!!IGNITION DETECTED!!!!!!!!!!" << std::endl;
     }
 
     EN_temp = std::max(EN_DC, 0.1);  // default E/N value
 
     // Time step adjustment based on pulse
-    if (iPulse < nPulses) { // Still pulsing
-        double dt3 = (iPulse + 1) * pulsePeriod - runTime; // Avoid overstepping
+    if (iPulse < nPulses && config.discharge) { // Still pulsing
+        double dt3 = startTime + (iPulse + 1) * pulsePeriod - runTime; // Avoid overstepping
         dt_ig = std::min(dt3, dt_ig);
 
-        if ((runTime + SMALL) < (iPulse * pulsePeriod + pulseExten)){ // During pulse or pulse extension
-            std::cout << " Reactor " << state.name << " discharging: " << (config.discharge ? "ON" : "OFF") << "; runTime = " << runTime << "; iPulse = " << iPulse << std::endl;
-            if ((runTime + SMALL) < (iPulse * pulsePeriod + pulseWidth) && dischargeOn && config.discharge) { // During discharge
+        if ((runTime + SMALL) < (startTime + iPulse * pulsePeriod + pulseExten)){ // During pulse or pulse extension
+            if (g_verbose) std::cout << " Reactor " << state.name << " discharging: " << (config.discharge ? "ON" : "OFF") << "; runTime = " << runTime << "; iPulse = " << iPulse << std::endl;
+            if ((runTime + SMALL) < (startTime + iPulse * pulsePeriod + pulseWidth) && dischargeOn) { // During discharge
                 if (iPulse <= 1 || nE_1 < 1e10) {
-                    std::cout << "Using fixed time step for first two pulses." << std::endl;
+                    if (g_verbose) std::cout << "Using fixed time step for first two pulses." << std::endl;
                     dt = dt1;
                 } else {
-                    std::cout << "Using log-dynamic time step." << std::endl;
+                    if (g_verbose) std::cout << "Using log-dynamic time step." << std::endl;
                     double K = std::max(std::round(log10(nE_2 / nE_1) * 100) / 100, 0.2);
-                    std::cout << "Growth order K = " << K << "; tau_NRP = " << tau_NRP << std::endl;
+                    if (g_verbose) std::cout << "Growth order K = " << K << "; tau_NRP = " << tau_NRP << std::endl;
                     dt = logDynamicTimestep(K, tau_NRP, NstepInPulse, iStepInPulse);
                 }
 
@@ -534,8 +538,8 @@ void findTimeStep(
                         state.integrator->reinitialize(runTime, *state.odes);
 
                         // PER VETTORIALIZZAZIONE DEGLI IMPULSI
-                        tau_NRP = (runTime - iPulse * pulsePeriod); // Duration of the nanosecond discharge
-                        std::cout << "NSD terminated at " << disEnergy << " [mJ/cm^3]" << ", tau_NRP = " << tau_NRP << "\n";
+                        tau_NRP = (runTime - startTime - iPulse * pulsePeriod); // Duration of the nanosecond discharge
+                        if (g_verbose) std::cout << "NSD terminated at " << disEnergy << " [mJ/cm^3]" << ", tau_NRP = " << tau_NRP << "\n";
 
                         nE_2 = getNumberDens(state.gas, state.odes->electronIndex); // Store n_e at the end of a nanosecond pulse
 
@@ -544,15 +548,15 @@ void findTimeStep(
                         fastExpansion = true;
                     }
                 double K = (iPulse <= 1 || nE_2 < 1e10) ? -1 : std::min(round(log10(nE_3 / nE_2) * 100) / 100, -0.1); // fixed K for first two pulses
-                std::cout << "Decay order K = " << K << std::endl;
+                if (g_verbose) std::cout << "Decay order K = " << K << std::endl;
                 dt = (iStepAfPulse >= NstepAfPulse) ? // Make dt unchanged for iStepAfPulse >= NstepAfPulse to cut off dt growth
                     dt : logDynamicTimestep(K, pulseExten, NstepAfPulse, iStepAfPulse);
                 
                 // Isentropic heat loss model. P, T, rho jump at 100 ns after the pulse
-                if (runTime > (iPulse * pulsePeriod + 1e-7) && state.odes->heatLoss && fastExpansion)
+                if (runTime > (startTime + iPulse * pulsePeriod + 1e-7) && state.odes->heatLoss && fastExpansion)
                 {
                     double T_new = state.gas->temperature() * pow( config.pressure.value()/state.gas->pressure(), 1 - state.gas->cv_mass()/state.gas->cp_mass() );
-                    std::cout << "Temperature jump: " << state.gas->temperature() << " -> " << T_new << "\n";
+                    if (g_verbose) std::cout << "Temperature jump: " << state.gas->temperature() << " -> " << T_new << "\n";
                     state.gas->setState_TPY(T_new, config.pressure.value(), state.gas->massFractions());
                     state.odes->setConstPD(state.gas->pressure(), state.gas->density());
                     if (CP_or_CV == "CP"){
@@ -577,8 +581,8 @@ void findTimeStep(
         dt = dt_max;
     }
 
-    dt = std::max(dt, 1e-14);  // Make sure dt > 1e-14, avoid dt cascade
     dt = std::min(dt, dt_ig); // Always ensure dt is small enough to capture ignition
+    dt = std::max(dt, 1e-14);  // Make sure dt > 1e-14, avoid dt cascade
     
     if (dt < 1e-16) {
             std::cerr << "dt is too small !" << "\n";
@@ -586,7 +590,7 @@ void findTimeStep(
         }
     
     
-    std::cout << "dt = " << dt << "; iStepInPulse = " << iStepInPulse << "; iStepAfPulse = " << iStepAfPulse
+    if (g_verbose) std::cout << "dt = " << dt << "; iStepInPulse = " << iStepInPulse << "; iStepAfPulse = " << iStepAfPulse
                 << std::endl;
     
 }
@@ -599,13 +603,13 @@ void findTimeStep(
 // ---------------------------------------------------------------------------
 class MassFlowSolverSession {
 public:
-    MassFlowSolverSession() {
+    explicit MassFlowSolverSession(const std::string& scriptDir) {
         Py_Initialize();
 
-        PyObject* sysPath  = PySys_GetObject("path"); // borrowed ref
-        PyObject* scriptDir = PyUnicode_FromString(MASSFLOW_SCRIPT_DIR);
-        PyList_Insert(sysPath, 0, scriptDir);
-        Py_DECREF(scriptDir);
+        PyObject* sysPath     = PySys_GetObject("path"); // borrowed ref
+        PyObject* scriptDirObj = PyUnicode_FromString(scriptDir.c_str());
+        PyList_Insert(sysPath, 0, scriptDirObj);
+        Py_DECREF(scriptDirObj);
 
         module_ = PyImport_ImportModule("massflowsolver");
         if (!module_) {
@@ -686,20 +690,7 @@ int main(int argc, char *argv[]) {
          << "|   Contact:      cristian.casalanguida@studenti.polito.it                    |\n"
          << "\\*---------------------------------------------------------------------------*/" << std::endl;
     
-    CppBOLOS::currentLogLevel = CppBOLOS::LOG_INFO;      // Default log level
-    std::string controlDictPath = "../controlDict";       // Default path
-    std::string parameterPath = "../chemPlasProperties";  // Default path
-    std::string crnDictPath = "../crnDict";        // Default path
-    const std::string massFlowPath = "../output/massflow.csv";
-    std::ofstream massFlowFile(massFlowPath);
-
-    // Map string to LogLevel
-    std::map<std::string, CppBOLOS::LogLevel> logLevels = {
-            {"NONE", CppBOLOS::LOG_NONE},
-            {"WARNING", CppBOLOS::LOG_WARNING},
-            {"INFO", CppBOLOS::LOG_INFO},
-            {"DEBUG", CppBOLOS::LOG_DEBUG}
-    };
+    CppBOLOS::currentLogLevel = CppBOLOS::LOG_WARNING;   // Default: only warnings
 
     // Parse command-line arguments
     std::string casePath = "..";
@@ -707,21 +698,21 @@ int main(int argc, char *argv[]) {
         std::string arg = argv[i];
         if (arg == "-case" && i + 1 < argc) {
             casePath = argv[++i];
-            controlDictPath = casePath + "/controlDict";
-            parameterPath = casePath + "/chemPlasProperties";
-            crnDictPath = casePath + "/crnDict";
-        } else if (arg == "-log" && i + 1 < argc) {
-            std::string logLevelStr = argv[++i];
-            auto it = logLevels.find(logLevelStr);
-            if (it != logLevels.end()) {
-                CppBOLOS::currentLogLevel = it->second;
-            } else {
-                std::cerr << "Unknown log level: " << logLevelStr << std::endl;
-                return 1;
-            }
+        } else if (arg == "-log") {
+            g_verbose = true;
+            CppBOLOS::currentLogLevel = CppBOLOS::LOG_INFO;
         }
     }
 
+    // All paths derived from casePath
+    const std::string controlDictPath = casePath + "/controlDict";
+    const std::string parameterPath   = casePath + "/chemPlasProperties";
+    const std::string crnDictPath     = casePath + "/crnDict";
+    const std::string outputDir       = casePath + "/output";
+    const std::string massFlowPath    = outputDir + "/massflow.csv";
+    std::filesystem::create_directories(outputDir);
+    
+    std::ofstream massFlowFile(massFlowPath);
     /* -------------------------------- SET UP PARAMETERS -------------------------------- */
 
     // Quick sanity checks: ensure required case files exist before attempting to read them
@@ -745,6 +736,7 @@ int main(int argc, char *argv[]) {
     }
     // Read time control
     double runTime = readParameter<double>(controlDictPath, "startTime");
+    double startTime = runTime;
     double t_end = readParameter<double>(controlDictPath, "endTime");
     const int nPulses = readParameter<int>(controlDictPath, "nPulses");
 
@@ -795,12 +787,12 @@ int main(int argc, char *argv[]) {
     double time_max_dTdt = 0.0;             // ignition delay time (at maximum dT/dt)
     const double SMALL = 1.0e-16;
     bool fastExpansion = false;             // isentropic gas expansion flag
-    t_end = std::max(pulsePeriod * nPulses, t_end); // overload t_end
+    t_end = std::max(runTime + pulsePeriod * nPulses, t_end); // overload t_end
     const auto endTimeForce = readParameter<double>(controlDictPath, "endTimeForce", t_end);
     t_end = std::min(t_end, endTimeForce);  // Terminate simulations is endTimeForce is specified
 
     /* ------------------------------- SET UP BOLTZMANN SOLVER ------------------------------- */
-    std::cout << "\n========  SETTING BOLTZMANN SOLVER ... ========\n" << std::endl;
+    if (g_verbose) std::cout << "\n========  SETTING BOLTZMANN SOLVER ... ========\n" << std::endl;
 
     // Species configured by CppBOLOS
     auto bSpecies = readParameter<std::vector<std::string>>(parameterPath, "BoltzmannSpecies");
@@ -848,6 +840,9 @@ int main(int argc, char *argv[]) {
             }
             spec.boltzmannSpecies = std::move(localBoltzmannSpecies);
         }
+        if (!spec.outputFile.has_value()) {
+            spec.outputFile = outputDir + "/" + name + ".csv";
+        }
         if (spec.type != "reservoir" && spec.volume == 0.0) {
             std::cerr << "Error: volume must be specified and greater than 0 for non-reservoir reactor '" << name << "'.\n";
             outputCheckTemp = 1;
@@ -859,7 +854,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* ----------------------------- SET UP GAS PHASE AND REACTOR  -------------------------------- */
-    std::cout << "\n========  SETTING GAS PHASE & REACTORS, CREATE  & INIT ODE INTEGRATOR ========\n" << std::endl;
+    if (g_verbose) std::cout << "\n========  SETTING GAS PHASE & REACTORS, CREATE  & INIT ODE INTEGRATOR ========\n" << std::endl;
     /* ------------------------------ CREATE & INIT ODE INTEGRATOR --------------------------------- */
     //  - the default settings for CVodesIntegrator are used:
     //     solution method: BDF_Method
@@ -934,19 +929,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    MassFlowSolverSession pySession;
+    MassFlowSolverSession pySession(casePath);
 
     /* ------------------------------------- RUN THE SIMULATION ---------------------------------- */
     std::cout << "\n======== RUNNING SIMULATION ========\n" << std::endl;
 
     clock_t t0 = clock(); // save start time
-    double dTdtcheck = dTdt_min * 10; // initial value to enter the loop
+    double dTdtcheck = std::abs(dTdt_min) * 10; // initial value to enter the loop
     // Main time loop
     // const auto dTbelowTeq = readParameter<double>(controlDictPath, "dTbelowTeq");
     // while (runTime < t_end && gas->temperature() < (T_eq - dTbelowTeq)) {
     while (runTime < t_end && (runTime < 2.0 || dTdtcheck > dTdt_min)) { // Do at least two seconds
         std::ostringstream oss; // Format output digit
-        oss << "\nrunTime [s]: " << std::scientific << std::setprecision(9) << runTime;
+        oss << std::scientific << std::setprecision(9) << runTime;
         // TIMESTEP FUNCTION TO ITERATE FROM HERE
 
         for (size_t idx = 0; idx < reactors.size(); idx++) {
@@ -1070,12 +1065,12 @@ int main(int argc, char *argv[]) {
             double& dT = dT_vec[idx];
             double& dTdt = dTdt_vec[idx];
 
-            std::cout << oss.str() << " | reactor " << state.name << ", iPulse: " << iPulse << "\n";
+            std::cout << "\rrunTime [s]: " << oss.str() << " | reactor " << state.name << ", iPulse: " << iPulse << "   " << std::flush;
             /*
             {
                 BoltzmannSolverGuard guard(state.boltzmannState);
 
-                findTimeStep(state, config, runTime, SMALL, pulsePeriod, pulseWidth, pulseExten, dischargeOn, fastExpansion, stayEN_DC,
+                findTimeStep(state, config, runTime, startTime, SMALL, pulsePeriod, pulseWidth, pulseExten, dischargeOn, fastExpansion, stayEN_DC,
                             CP_or_CV, iPulse, nPulses, dt_element, dt1, dt_max, dT, dT_max, dTdt,
                             nE_1, nE_2, nE_3, tau_NRP, disEnergy,
                             iStepInPulse, NstepInPulse,
@@ -1086,7 +1081,7 @@ int main(int argc, char *argv[]) {
             state.boltzmannState.density = *state.boltzmannSpecies;
             */
 
-            findTimeStep(state, config, runTime, SMALL, pulsePeriod, pulseWidth, pulseExten, dischargeOn, fastExpansion, stayEN_DC,
+            findTimeStep(state, config, runTime, startTime, SMALL, pulsePeriod, pulseWidth, pulseExten, dischargeOn, fastExpansion, stayEN_DC,
                         CP_or_CV, iPulse, nPulses, dt_element, dt1, dt_max, dT, dT_max, dTdt,
                         nE_1, nE_2, nE_3, tau_NRP, disEnergy,
                         iStepInPulse, NstepInPulse,
@@ -1145,7 +1140,7 @@ int main(int argc, char *argv[]) {
                     {
                         BoltzmannRate::bsolver.init();
 
-                        std::cout << "Updating EEDF ..." << "\n";
+                        if (g_verbose) std::cout << "Updating EEDF ..." << "\n";
                         if (EN_temp < 1) {
                             BoltzmannRate::F0 = BoltzmannRate::bsolver.maxwell(state.gas->temperature()*8.6173E-5);
                         }
@@ -1160,7 +1155,7 @@ int main(int argc, char *argv[]) {
                     state.integrator->reinitialize(runTimeOld, *state.odes);
                 }
 
-                std::cout << "EN = " << BoltzmannRate::bsolver.get_EN()
+                if (g_verbose) std::cout << "EN = " << BoltzmannRate::bsolver.get_EN()
                             << "; Tgas = " << state.gas->temperature()
                             << "; Te = " << BoltzmannRate::bsolver.get_Te()
                             << "; n_e = " << getNumberDens(state.gas, state.odes->electronIndex)
@@ -1209,7 +1204,7 @@ int main(int argc, char *argv[]) {
                     // std::cout << ", " << dens;
                 }
                 
-                std::cout << std::endl;
+                if (g_verbose) std::cout << std::endl;
 
                 // Check plasma power and energy deposited
                 double power_temp = BoltzmannRate::bsolver.elec_power()
@@ -1219,7 +1214,7 @@ int main(int argc, char *argv[]) {
                 
                 state.outputFile << ", " << power_temp << ", " << disEnergy;
                 state.outputFile << std::endl;
-                std::cout << "Power_input [W/cm^3]: " << power_temp << " | Energy deposited [mJ/cm^3]: " << disEnergy << "\n";
+                if (g_verbose) std::cout << "Power_input [W/cm^3]: " << power_temp << " | Energy deposited [mJ/cm^3]: " << disEnergy << "\n";
 
                 // Check if terminate nanosecond discharge, cut off by designated power deposition Ep
                 dischargeOn = (disEnergy < Ep);
@@ -1233,7 +1228,7 @@ int main(int argc, char *argv[]) {
                 }
 
                 // Trigger plasmaOn only ONCE for a new pulse
-                if (runTime + SMALL >= (iPulse + 1) * pulsePeriod ) { // Entering next pulse period
+                if (runTime + SMALL >= ((iPulse + 1) * pulsePeriod + startTime)) { // Entering next pulse period
                     iPulse += 1;
                     if (iPulse == nPulses) {
                         std::cout << "\n >>>>>>>> NRP Discharges Finished for reactor " << state.name << " <<<<<<<< \n" << std::endl;
@@ -1241,7 +1236,7 @@ int main(int argc, char *argv[]) {
                         plasmaOn = false;
                     }
                     if (plasmaOn) {
-                        std::cout << "\n**** Start Pulse Loop No. " << iPulse + 1 << " at runTime = " << runTime << " for reactor " << state.name << " ****\n";
+                        if (g_verbose) std::cout << "\n**** Start Pulse Loop No. " << iPulse << " at runTime = " << runTime << " for reactor " << state.name << " ****\n";
                         if (state.odes->heatLoss) {
                             state.odes->setConstPD(state.gas->pressure(), state.gas->density());
                             state.odes->constPressure = false; // switch to constant volume
@@ -1270,9 +1265,10 @@ int main(int argc, char *argv[]) {
 
         dTdtcheck = *std::max_element(dTdt_vec.begin(), dTdt_vec.end());
         
-        std::cout << "-------------" << "\n";
+        if (g_verbose) std::cout << "-------------" << "\n";
     }
     // End of the main time loop
+    std::cout << "\n";
 
     for (size_t idx = 0; idx < reactors.size(); idx++) {
             ReactorState& state = reactors[idx];

@@ -17,112 +17,62 @@
 // ================ Reactors and reservoirs ================ 
 reactors
 {
-    PSR1 
+    ZAX 
     {
         type                PSR;
-        volume              0.00000112; // [m^3]
+        volume              4.63e-05; // [m^3]
         discharge           no; // *optional
-        initialTemperature  300.0; // Initial Temperature [K] *optional
+        initialTemperature  1575.8; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
         composition
         {
-            H2     1;
+            O2   0.2027;
+            N2   0.7229;
+            H2   0.0744;
         }
     }
 
-    PSR2 
+    ORZ
     {
         type                PSR;
-        volume              0.00001673; // [m^3]
+        volume              6.15e-04; // [m^3]
         discharge           no; // *optional
-        initialTemperature  2000.0; // Initial Temperature [K] *optional
+        initialTemperature  1971.4; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
         composition
         {
-            O2     0.0178;
-            N2     0.6419;
-            H2O    0.2878; // added 0.0002
-            H2     0.0253;
-            OH     0.0148;
-            H      0.0091;
-            O      0.0035;
+            O2   0.1919;
+            N2   0.6845;
+            H2   0.1236;
         }
     }
 
-    PSR3
+    FLSW
     {
         type                PSR;
-        volume              0.000821; // [m^3]
+        volume              4.59e-05; // [m^3]
         discharge           no; // *optional
-        initialTemperature  623.8; // Initial Temperature [K] *optional
+        initialTemperature  1959.3; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
         composition
         {
-            O2     0.219; // O2     0.1853;
-            N2     0.781; // N2     0.7724;
-            H2     0.0;   // H2     0.0022;
-            H2O    0.0;   // H2O    0.0401;
+            O2   0.1944;
+            N2   0.6931;
+            H2   0.1125;
         }
     }
 
-    PSR4 
+    IRZ
     {
         type                PSR;
-        volume              0.00000056; // [m^3]
+        volume              1.53e-03; // [m^3]
         discharge           no; // *optional
-        initialTemperature  1457.8; // Initial Temperature [K] *optional
+        initialTemperature  1813.2; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
         initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
-        composition
-        {
-            O2     0.219;   // O2     0.1000;
-            N2     0.781;   // N2     0.7111;
-            H2O    0.0;     // H2O    0.1684;
-            H2     0.0;     // H2     0.0064;
-            OH     0.0;     // OH     0.0054;
-            H      0.0;     // H      0.0043;
-            O      0.0;     // O      0.0044;
-        }
-    }
-
-    PSR5 
-    {
-        type                PSR;
-        volume              0.00534; // [m^3]
-        discharge           no; // *optional
-        initialTemperature  834.6; // Initial Temperature [K] *optional
-        pressure            101325.0; // Initial pressure [Pa] *optional
-        initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
-        composition
-        {
-            O2     0.219;   // O2     0.1687;
-            N2     0.781;   // N2     0.7623;
-            H2O    0.0;     // H2O    0.0690; // added 0.001
-        }
-    }
-
-    PSR6 
-    {
-        type                PSR;
-        volume              0.00177; // [m^3]
-        discharge           no; // *optional
-        initialTemperature  834.6; // Initial Temperature [K] *optional
-        pressure            101325.0; // Initial pressure [Pa] *optional
-        initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
-        composition
-        {
-            O2     0.219;   // O2     0.1687;
-            N2     0.781;   // N2     0.7624;
-            H2O    0.0;     // H2O    0.0689; // added 0.0009
-        }
-    }
-
-    airInlet
-    {
-        type        reservoir;
         composition
         {
             O2     0.219;
@@ -130,12 +80,42 @@ reactors
         }
     }
 
-    fuelInlet
+    FLAX
     {
-        type        reservoir;
+        type                PSR;
+        volume              3.35e-04; // [m^3]
+        discharge           no; // *optional
+        initialTemperature  2027.5; // Initial Temperature [K] *optional
+        pressure            101325.0; // Initial pressure [Pa] *optional
+        initialElectronDensity 1e1; // Initial electron number density [#/cm^3] *optional
         composition
         {
-            H2     1.0;
+            O2     0.219;
+            N2     0.781;
+        }
+    }
+
+    resI
+    {
+        type        reservoir;
+        initialTemperature 441.63;
+        composition
+        {
+            O2   0.2027;
+            N2   0.7229;
+            H2   0.0744;
+        }
+    }
+
+    resII
+    {
+        type        reservoir;
+        initialTemperature 436.08;
+        composition
+        {
+            O2   0.1919;
+            N2   0.6845;
+            H2   0.1236;
         }
     }
 
@@ -151,94 +131,101 @@ reactors
 
 massFlowControllers
 {
-    airI
+    m1
     {
-        start   airInlet;
-        end     PSR3;
+        start   resI;
+        end     ZAX;
         value   0.0;
     }
 
-    airII
+    m2FLSW
     {
-        start   airInlet;
-        end     PSR5;
+        start   resII;
+        end     FLSW;
         value   0.0;
     }
 
-    fuelI
+    m2ORZ
     {
-        start   fuelInlet;
-        end     PSR1;
-        value   0.0;
-    }
-
-    out
-    {
-        start   PSR6;
-        end     outlet;
+        start   resII;
+        end     ORZ;
         value   0.0;
     }
 
     mA
     {
-        start   PSR1;
-        end     PSR2;
+        start   ZAX;
+        end     FLSW;
         value   0.0;
     }
 
     mB
     {
-        start   PSR2;
-        end     PSR3;
+        start   FLSW;
+        end     ORZ;
         value   0.0;
     }
 
     mC
     {
-        start   PSR3;
-        end     PSR2;
+        start   ORZ;
+        end     FLSW;
         value   0.0;
     }
 
     mD
     {
-        start   PSR2;
-        end     PSR5;
+        start   FLSW;
+        end     FLAX;
         value   0.0;
     }
 
     mE
     {
-        start   PSR5;
-        end     PSR2;
+        start   IRZ;
+        end     FLSW;
         value   0.0;
     }
 
     mF
     {
-        start   PSR1;
-        end     PSR4;
+        start   ZAX;
+        end     IRZ;
         value   0.0;
     }
 
     mG
     {
-        start   PSR5;
-        end     PSR4;
+        start   IRZ;
+        end     ZAX;
         value   0.0;
     }
 
     mH
     {
-        start   PSR4;
-        end     PSR5;
+        start   FLAX;
+        end     IRZ;
         value   0.0;
     }
 
     mI
     {
-        start   PSR5;
-        end     PSR6;
+        start   IRZ;
+        end     FLAX;
+        value   0.0;
+    }
+
+    mM
+    {
+        start   IRZ;
+        end     outlet;
+        value   0.0;
+    }
+
+    mN
+    {
+        start   FLAX;
+        end     outlet;
         value   0.0;
     }
 }

@@ -18,10 +18,6 @@ link_directories("../../../cantera/build/lib")
 
 add_executable(ChemPlasKin masterCRN.cpp)
 
-# Embed the source directory so the binary can locate massflowsolver.py at runtime
-target_compile_definitions(ChemPlasKin PRIVATE
-    MASSFLOW_SCRIPT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
-
 target_include_directories(ChemPlasKin PRIVATE ${Python3_INCLUDE_DIRS})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")

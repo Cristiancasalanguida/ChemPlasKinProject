@@ -40,3 +40,7 @@ cmake-build-debug/
 
 !Vp-t.csv
 !ne-t.csv
+
+# Output e log delle simulazioni
+Thesis/**/output/
+Thesis/**/*.log

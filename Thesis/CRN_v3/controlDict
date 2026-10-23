@@ -17,13 +17,13 @@
 // Simulation ends at max(endTime, nPulse*pulsePeriod)
 
 startTime      0.0;    // Simulation start time [s]
-endTime        50.0;    // Simulation end time [s]
+endTime        7.5;    // Simulation end time [s]
 nPulses        0;     // Total number of pulses
 
 // ================ Time Step Parameters ================
 
 dt1            1e-11;   // Time step during the discharge pulse [s] 1e-11
-dt_max         1e-4;    // Maximum time step allowed [s] 1e-7
+dt_max         1e-5;    // Maximum time step allowed [s] 1e-7
 
 // Adaptive timestep for main time loop 
 pulseExten     1e-5;    // Fast relaxation or pulse influence stage [s]

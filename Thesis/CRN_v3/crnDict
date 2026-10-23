@@ -36,7 +36,7 @@ reactors
     ORZ
     {
         type                PSR;
-        volume              6.06e-04; // [m^3]
+        volume              6.15e-04; // [m^3]
         discharge           no; // *optional
         initialTemperature  1971.4; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
@@ -52,7 +52,7 @@ reactors
     FLSW
     {
         type                PSR;
-        volume              4.67e-05; // [m^3]
+        volume              4.59e-05; // [m^3]
         discharge           no; // *optional
         initialTemperature  1959.3; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
@@ -68,7 +68,7 @@ reactors
     IRZ
     {
         type                PSR;
-        volume              1.54e-03; // [m^3]
+        volume              1.53e-03; // [m^3]
         discharge           no; // *optional
         initialTemperature  1813.2; // Initial Temperature [K] *optional
         pressure            101325.0; // Initial pressure [Pa] *optional
@@ -98,7 +98,7 @@ reactors
     resI
     {
         type        reservoir;
-        initialTemperature 680.39;
+        initialTemperature 441.63;
         composition
         {
             O2   0.2027;
@@ -110,7 +110,7 @@ reactors
     resII
     {
         type        reservoir;
-        initialTemperature 667.30;
+        initialTemperature 436.08;
         composition
         {
             O2   0.1919;
