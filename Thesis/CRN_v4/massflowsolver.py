@@ -139,7 +139,7 @@ def mainSolverFOLC(ox_Y, fuel_Y):
     mG = p4 * mI
     mH = mG + mF # + mI - mA - mC +mB - mAir_II
 
-    # !!!!!!!!! NEL PAPER MANCA IL TERMINE mC * yH2_r3
+    # !!!!!!!!! THE TERM mC * yH2_r3 IS MISSING IN THE PAPER
     K1 = mA * yH2_r1 + mC * yH2_r3 - (mA + mC) * yH2_r2 # mA * yH2_r1 - (mB + mD) * yH2_r2
     # !!!!!!!!!
     K2 = mA * yO2_r1 + mC * yO2_r3 - (mA + mC) * yO2_r2 # mA * yO2_r1 + mC * yO2_r3 - (mB + mD) * yO2_r2

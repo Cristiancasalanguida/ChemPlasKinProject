@@ -102,6 +102,11 @@ struct ReactorState {
     double mdot_out = 0.0;       // [kg/s], updated with the flows
     std::ofstream pulseFile;     // one row per pulse (discharge reactors only)
     double neMaxPulse = 0.0;     // max electron density in the current pulse [#/cm^3]
+    // End of the discharge at Ep: internal time of CVODE when the reactor is advanced with
+    // step() (-1 = unknown, after integrate()), and pulse end already found by the root search
+    double tInternal = -1.0;
+    bool pulseEndFound = false;
+    double EpDischarge = 0.0;    // energy deposited at the end of the discharge [mJ/cm^3]
 };
 
 struct ReservoirState {
@@ -397,10 +402,16 @@ ReactorState createReactorState(
     // Create and initialize the ODE integrator
 
     state.integrator = std::unique_ptr<Integrator>(newIntegrator("CVODE"));
-    state.integrator->initialize(runTime, *state.odes);
 
-    auto Tolerances = readParameter<std::map<std::string, double>>(controlDictPath, "odes");
-    state.integrator->setTolerances(Tolerances["reltol"], Tolerances["abstol"]);
+    // Tolerances must be set before initialize(): Cantera passes them to CVODE only there
+    // (reinitialize() does not). Before 2026-10-25 they were set after it and never used, so
+    // CVODE ran with Cantera's defaults (reltol 1e-9, abstol 1e-15), still used if 'odes' lacks them.
+    auto Tolerances = readParameter<std::map<std::string, double>>(controlDictPath, "odes",
+                                                                   std::map<std::string, double>{});
+    const double reltol = Tolerances.count("reltol") ? Tolerances["reltol"] : 1e-9;
+    const double abstol = Tolerances.count("abstol") ? Tolerances["abstol"] : 1e-15;
+    state.integrator->setTolerances(reltol, abstol);
+    state.integrator->initialize(runTime, *state.odes);
 
     auto kin = state.sol->kinetics();
     const int irxns = kin->nReactions();
@@ -455,7 +466,7 @@ ReactorState createReactorState(
             throw std::runtime_error("Failed to open pulse file for reactor: " + name);
         }
         state.pulseFile << "iPulse, Time(s), T_gas(K), p(Pa), n_e_end(#/cm^3), n_e_max(#/cm^3), "
-                        << "Energy_deposited(mJ/cm^3), tau_NRP(s)" << std::endl;
+                        << "Energy_deposited(mJ/cm^3), tau_NRP(s), Energy_discharge(mJ/cm^3)" << std::endl;
     }
 
     return state;
@@ -514,6 +525,55 @@ void activateReactor(const ReactorState& s)
     BoltzmannData::electronTemp = s.bCache[N];
     BoltzmannData::reducedEfield = s.bCache[N + 1];
     BoltzmannRate::updateOnce = true; // MultiRate caches re-read the rate constants
+}
+
+// Advance a discharging reactor from t0 to t1 with CVODE internal steps (step()), watching
+// g = EpTarget - Ep (Ep = deposited plasma energy, y[2]). If g changes sign or becomes zero, the
+// crossing time t* is located on the CVODE interpolant of the internal step (derivative(t, 0),
+// no extra RHS evaluations), the reactor state is set to y(t*) and t* is returned. Otherwise the
+// state is set to y(t1) and -1 is returned. CVODE must not be behind t0 (s.tInternal >= t0).
+double integrateDischarge(ReactorState& s, double t0, double t1, double EpTarget)
+{
+    auto& integ = *s.integrator;
+    double a = t0;
+    double Ea = s.odes->depositedPlasmaEnergy(); // energy at t0, below the target
+    double tn = s.tInternal;
+    while (true) {
+        // part of [t0, t1] covered by the last internal step: [a, b]
+        const double b = std::min(tn, t1);
+        if (b > a) {
+            const double Eb = integ.derivative(b, 0)[2];
+            if (Eb >= EpTarget) {
+                // bracketed root: secant with bisection safeguard, down to 1e-6 of the target
+                // or to adjacent representable times
+                double lo = a, hi = b, Elo = Ea, Ehi = Eb;
+                while (std::abs(Ehi - EpTarget) > 1e-6 * EpTarget && std::nextafter(lo, hi) < hi) {
+                    double tm = lo + (hi - lo) * (EpTarget - Elo) / (Ehi - Elo);
+                    tm = std::min(std::max(tm, lo + 0.01 * (hi - lo)), hi - 0.01 * (hi - lo));
+                    if (!(tm > lo && tm < hi)) tm = lo + 0.5 * (hi - lo);
+                    if (!(tm > lo && tm < hi)) break;
+                    const double Em = integ.derivative(tm, 0)[2];
+                    if (Em < EpTarget) {
+                        lo = tm;
+                        Elo = Em;
+                    } else {
+                        hi = tm;
+                        Ehi = Em;
+                    }
+                }
+                s.odes->updateState(integ.derivative(hi, 0));
+                s.tInternal = -1.0;
+                return hi;
+            }
+            a = b;
+            Ea = Eb;
+        }
+        if (tn >= t1) break;
+        tn = integ.step(t1);
+    }
+    s.odes->updateState(integ.derivative(t1, 0));
+    s.tInternal = tn; // CVODE is at tn >= t1
+    return -1.0;
 }
 
 // Write one row of the reactor output file
@@ -578,13 +638,13 @@ void findTimeStep(
     double runTime,
     double startTime,
     double SMALL,
-    double pulsePeriod, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
-    double pulseWidth, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
-    double pulseExten, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
+    double pulsePeriod, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
+    double pulseWidth, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
+    double pulseExten, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
     uint8_t& dischargeOn, uint8_t& fastExpansion, 
-    bool stayEN_DC, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
-    const std::string& CP_or_CV, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
-    int iPulse, int nPulses, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
+    bool stayEN_DC, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
+    const std::string& CP_or_CV, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
+    int iPulse, int nPulses, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
     double& dt,
     double dt1,
     double dt_max,
@@ -595,7 +655,7 @@ void findTimeStep(
     double& tau_NRP, double& disEnergy, 
     int& iStepInPulse, int NstepInPulse,
     int& iStepAfPulse, int NstepAfPulse,
-    double EN, double EN_DC, // VETTORIALIZZARE SE I REATTORI SONO INDIPENDENTI
+    double EN, double EN_DC, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
     double& EN_temp, const double EN_TOLERANCE, const double TGAS_TOLERANCE)
 {
     // Function for dynamic time stepping
@@ -629,18 +689,23 @@ void findTimeStep(
 
                 EN_temp = EN; // Should be an output to update Boltzmann solver
 
-                // PER VETTORIALIZZAZIONE DEGLI IMPULSI
+                // FOR THE VECTORIZATION OF THE PULSES
                 iStepInPulse += 1;
             } else { // After discharge, during pulse extension
                 if (iStepAfPulse == 0) { // First step after the discharge is off; record it
+                    // Already done at the crossing time when the discharge ended at Ep (pulseEndFound)
+                    if (!state.pulseEndFound) {
                         // sim.reinitialize();
                         state.integrator->reinitialize(runTime, *state.odes);
+                        state.tInternal = runTime;
 
-                        // PER VETTORIALIZZAZIONE DEGLI IMPULSI
+                        // FOR THE VECTORIZATION OF THE PULSES
                         tau_NRP = (runTime - startTime - iPulse * pulsePeriod); // Duration of the nanosecond discharge
                         if (g_verbose) std::cout << "NSD terminated at " << disEnergy << " [mJ/cm^3]" << ", tau_NRP = " << tau_NRP << "\n";
 
                         nE_2 = getNumberDens(state.gas, state.odes->electronIndex); // Store n_e at the end of a nanosecond pulse
+                        state.EpDischarge = 1e-3 * state.odes->depositedPlasmaEnergy();
+                    }
 
                         // TODO: may need to update Boltzmann grid if E/N changes significantly
 
@@ -667,7 +732,7 @@ void findTimeStep(
                     fastExpansion = false; // only do once for a pulse
                 }
                 
-                // PER VETTORIALIZZAZIONE DEGLI IMPULSI
+                // FOR THE VECTORIZATION OF THE PULSES
                 iStepAfPulse += 1;
                 if (iStepAfPulse == NstepAfPulse) { // At the end of pulseExten, record n_e
                     nE_3 = getNumberDens(state.gas, state.odes->electronIndex);
@@ -1087,7 +1152,7 @@ int main(int argc, char *argv[]) {
     // Main time loop
     // const auto dTbelowTeq = readParameter<double>(controlDictPath, "dTbelowTeq");
     // while (runTime < t_end && gas->temperature() < (T_eq - dTbelowTeq)) {
-    while (runTime < t_end && (runTime < 2.0 || dTdtcheck > dTdt_min)) { // Do at least two seconds
+    while (runTime < t_end && dTdtcheck > dTdt_min) { // dTdt_min < 0 disables the dT/dt stop
 
         for (size_t idx = 0; idx < reactors.size(); idx++) {
             T_old_vec[idx] = reactors[idx].gas->temperature();
@@ -1280,6 +1345,7 @@ int main(int argc, char *argv[]) {
             double& dTdt_max = dTdt_max_vec[idx];
             double& time_max_dTdt = time_max_dTdt_vec[idx];
             double& nE_1 = nE_1_vec[idx];
+            double& nE_2 = nE_2_vec[idx];
             double& EN_temp = EN_vec[idx];
 
             // CRN_v4: install this reactor's Boltzmann rate constants; the EEDF is
@@ -1315,13 +1381,48 @@ int main(int argc, char *argv[]) {
 
             // CRN_v4: restart CVODE only when something outside the ODE changed
             // (new EEDF, new flows, energy reset at a new pulse, heat-loss jump)
+            // Discharge on in this step: same condition as findTimeStep
+            const bool discharging = config.discharge && iPulse < nPulses && dischargeOn
+                                     && (runTimeOld + SMALL < startTime + iPulse * pulsePeriod + pulseWidth);
+            // integrate() needs CVODE at runTimeOld; after step() it can be ahead
+            if (!discharging && state.tInternal > runTimeOld) state.needsReinit = true;
+            if (discharging && state.tInternal < runTimeOld) state.needsReinit = true;
+
             if (state.needsReinit) {
                 state.integrator->reinitialize(runTimeOld, *state.odes);
                 state.needsReinit = false;
+                state.tInternal = runTimeOld;
             }
 
-            state.integrator->integrate(runTime);
-            state.odes->updateState(state.integrator->solution());
+            if (discharging) {
+                // Discharge ended exactly at Ep: internal steps only for this reactor and only now
+                const double tStar = integrateDischarge(state, runTimeOld, runTime, 1e3 * Ep); // Ep [mJ/cm^3] -> J/m^3
+                if (tStar >= 0.0) {
+                    // Discharge off at t*: E/N back to the base value, new EEDF, CVODE restarted at t*,
+                    // then a step to runTime with the discharge off
+                    tau_NRP_vec[idx] = tStar - (startTime + iPulse * pulsePeriod);
+                    nE_2 = getNumberDens(state.gas, state.odes->electronIndex);
+                    state.EpDischarge = 1e-3 * state.odes->depositedPlasmaEnergy();
+                    dischargeOn = false;
+                    state.pulseEndFound = true;
+                    if (g_verbose) std::cout << "NSD terminated at Ep, tau_NRP = " << tau_NRP_vec[idx] << "\n";
+                    EN_temp = std::max(EN_DC, 0.1);
+                    computeEEDF(state, EN_temp, state.gas->temperature(), EN_temp, 1E20/(EN_temp*EN_temp));
+                    activateReactor(state);
+                    state.integrator->reinitialize(tStar, *state.odes);
+                    // CVODE cannot integrate over a few ulps of t: below 100 ulps the state at runTime is
+                    // the one at t* (that interval is integrated with the next step anyway)
+                    if (runTime - tStar > 100 * std::numeric_limits<double>::epsilon() * std::abs(runTime)) {
+                        state.integrator->integrate(runTime);
+                        state.odes->updateState(state.integrator->solution());
+                    }
+                    state.tInternal = -1.0;
+                }
+            } else {
+                state.integrator->integrate(runTime);
+                state.odes->updateState(state.integrator->solution());
+                state.tInternal = -1.0;
+            }
 
             // For CV reactors: update m_density to account for net mass flux.
             // For CP reactors: density follows the EOS automatically — no update needed.
@@ -1361,7 +1462,7 @@ int main(int argc, char *argv[]) {
                 if (state.pulseFile.is_open()) {
                     state.pulseFile << iPulse << ", " << std::setprecision(15) << runTime << std::setprecision(6) << ", " << state.gas->temperature() << ", "
                                     << state.gas->pressure() << ", " << ne << ", " << state.neMaxPulse << ", "
-                                    << disEnergy << ", " << tau_NRP_vec[idx] << "\n";
+                                    << disEnergy << ", " << tau_NRP_vec[idx] << ", " << state.EpDischarge << "\n";
                 }
                 state.neMaxPulse = ne;
                 iPulse += 1;
@@ -1381,6 +1482,7 @@ int main(int argc, char *argv[]) {
                     state.odes->resetDepositedPlasmaEnergy();
                     state.needsReinit = true; // Ep is part of the CVODE state vector
                     iStepInPulse = 0, iStepAfPulse = 0;
+                    state.pulseEndFound = false;
                     nE_1 = ne; // n_e at the beginning of a new pulse
                 }
             }
