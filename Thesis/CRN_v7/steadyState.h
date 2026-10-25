@@ -1,41 +1,49 @@
 // CRN_v7: steady state of the reactor network.
 //
-// The state of every node (reactor or reservoir) is sampled at the checks: flow updates on a pulse
-// boundary, one every w pulse periods (clustering, steadyStateCluster). For reactors T and Y_k are
-// averaged over the block of w periods since the last check (the state passed downstream; the
-// instantaneous short-lived species at the end of a period are at the end of their decay and jump
-// between pulses without any drift); p, mdot_in and mdot_out are taken at the check. The derivative
-// between two blocks, w periods apart, damps the pulse-to-pulse noise by ~w. Reservoirs are at steady
-// state by definition and are not checked. For a quantity x of the node (T, p, mdot_in, Y_k) the change between
-// two checks gives the relative rate projected over the time scale tau of the node (steadyStateTau, or
-// the residence time m/mdot_out; without outflow the filling time m/mdot_in; for a closed reactor the
-// window of W pulse periods):
+// The state of every reactor is sampled every w = W/k pulse periods (k = steadyStateSamples samples per
+// window W, or w = steadyStateCluster), at a flow update on a pulse boundary. A sample is the average of
+// T, p and Y_k over the w pulse periods since the previous one (the state passed downstream; the
+// instantaneous short-lived species at the end of a period are at the end of their decay and jump between
+// pulses without any drift); mdot_in and mdot_out, constant between flow updates, are taken at the sample
+// time. Reservoirs are at steady state by definition and are not checked.
 //
-//     d = |x1 - x0| / max(|x0|, |x1|) * tau / (t1 - t0)
+// Each sample is compared with the sample of W pulse periods before (k samples back: the last k + 1 are
+// kept, and the oldest is dropped once used), so a comparison over W periods is made every W/k periods:
+// with W = 100 and k = 4, samples at 25, 50, 75, 100, 125, ... and comparisons 25-125, 50-150, 75-175, ...
+// For a quantity x (T, p, mdot_in, mdot_out, Y_k) this gives the relative rate projected over the time
+// scale tau of the reactor (steadyStateTau, or the residence time m/mdot_out; without outflow the filling
+// time m/mdot_in; for a closed reactor the window of W periods):
 //
+//     d = |x(n) - x(n-k)| / max(|x(n)|, |x(n-k)|) * tau / (t(n) - t(n-k))
+//
+// A drift gives the same d over a window of W or of w periods, but the noise between samples (e.g. of
+// excited species, from small differences between the discharges) is divided by the whole window W.
+// Until W periods of samples are available (start, release) no comparison is made.
 // The mass balance enters the same way: with a net flow the reactor fills or empties, and the relative
 // change of its mass m over tau is d_m = |mdot_in - mdot_out| * tau / m (= 1 for a reactor that only
 // fills or only empties: never at steady state).
 //
-// d is the relative change of x over tau if the trend of the last interval goes on, i.e. an estimate of
-// the relative distance from the steady state for an approach with time constant ~tau. One criterion
-// covers both cases: small quantities are measured relative to themselves (mass fractions with
-// max(|x0|, |x1|) <= steadyStateYmin are skipped, round-off level), and the derivative is always taken
-// over a whole check interval (>= one pulse period), never over a small time step.
+// d is the relative change of x over tau if the trend of the window goes on, i.e. an estimate of the
+// relative distance from the steady state for an approach with time constant ~tau. One criterion covers
+// both cases: small quantities are measured relative to themselves (mass fractions with
+// max(|x(n)|, |x(n-k)|) <= steadyStateYmin are skipped, round-off level), and the derivative is always
+// taken over W pulse periods, never over a small time step.
 //
 // Nodes are grouped in strongly connected components of the flow graph (a group = one reactor, or the
-// reactors of a recirculation loop). At every check the counter n of a group is increased when d < tol
-// for every quantity of every node of the group and every node upstream of the group has converged;
-// otherwise it is reset (a single node of the group above tol resets it). A group converges when
-// n * w >= W, i.e. after W pulse periods below tol: its reactors are no longer integrated (the outflow
-// keeps the last averaged state) and its downstream groups go on. A converged group is released (and
-// integrated again) by release() when the inflows of one of its reactors change.
+// reactors of a recirculation loop). At every comparison the counter n of a group is increased when
+// d < tol for every quantity of every node of the group and every node upstream of the group has
+// converged; otherwise it is reset (a single node of the group above tol resets it). A group converges
+// when n >= steadyStateConfirm (default 1: one comparison, which already spans W periods, so the steady
+// state is detected at most W/k periods after the window settles): its reactors are no longer integrated
+// (the outflow keeps the last averaged state) and its downstream groups go on. A converged group is
+// released (and integrated again) by release() when the inflows of one of its reactors change.
 
 #ifndef CRN_STEADY_STATE_H
 #define CRN_STEADY_STATE_H
 
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <functional>
 #include <string>
 #include <vector>
@@ -44,8 +52,9 @@ namespace SteadyState
 {
 
 struct Settings {
-    int W = 0;            // pulse periods below tol to converge (0 = steady state monitor off)
-    int w = 1;            // pulse periods per check (clustering)
+    int W = 0;            // window: pulse periods between the two samples compared (0 = monitor off)
+    int w = 1;            // pulse periods between two samples (W/k)
+    int confirm = 1;      // consecutive comparisons below tol to converge
     double tol = 1e-3;    // threshold on d
     double Ymin = 1e-12;  // mass fractions below this in both samples are not checked
     double tau = 0.0;     // time scale of d [s]; 0 = residence (or filling) time of each reactor
@@ -58,9 +67,8 @@ struct Node {
     size_t index = 0;                // index in reactors or reservoirs
     std::vector<size_t> upstream;    // nodes with a mass flow into this node
     int group = -1;
-    // last sample: [T, p, mdot_in, mdot_out, Y_0 .. Y_K-1]
-    std::vector<double> x0;
-    double t0 = -1.0;
+    // last m + 1 block samples (time, [T, p, mdot_in, mdot_out, Y_0 .. Y_K-1]), oldest first
+    std::deque<std::pair<double, std::vector<double>>> history;
     double d = 0.0;                  // largest d of the last check
     std::string worst;               // quantity with the largest d
     bool converged = false;
@@ -118,36 +126,44 @@ public:
             if (nd.reservoir) nd.converged = true; // at steady state by definition
     }
 
-    // d of node v from its new sample x1 at time t1 (tau [s] > 0); the sample is stored for the next check.
-    // netRate = (mdot_in - mdot_out) / m [1/s] (mass balance). names: names of the components of x (for
-    // the worst quantity). Returns false at the first sample.
+    // Samples between the two compared (W/w, at least 1)
+    size_t windowBlocks() const {
+        return static_cast<size_t>(std::max(1L, std::lround(static_cast<double>(set.W) / set.w)));
+    }
+
+    // d of node v from its new block sample x1 at time t1 (tau [s] > 0), against the sample of
+    // windowBlocks() blocks before; the sample is stored. netRate = (mdot_in - mdot_out) / m [1/s] (mass
+    // balance). names: names of the components of x (for the worst quantity). Returns false while the
+    // window is not yet filled.
     bool evaluate(size_t v, const std::vector<double>& x1, double t1, double tau, double netRate,
                   const std::vector<std::string>& names) {
         Node& nd = nodes[v];
-        const bool first = nd.t0 < 0.0;
+        nd.history.emplace_back(t1, x1);
+        while (nd.history.size() > windowBlocks() + 1) nd.history.pop_front();
+        const bool full = nd.history.size() == windowBlocks() + 1;
         nd.d = 0.0;
         nd.worst.clear();
-        if (!first) {
-            const double scale = tau / (t1 - nd.t0);
+        if (full) {
+            const double t0 = nd.history.front().first;
+            const std::vector<double>& x0 = nd.history.front().second;
+            const double scale = tau / (t1 - t0);
             const double dMass = std::abs(netRate) * tau;
             if (dMass > 0.0) {
                 nd.d = dMass;
                 nd.worst = "mass";
             }
             for (size_t i = 0; i < x1.size(); i++) {
-                const double ref = std::max(std::abs(nd.x0[i]), std::abs(x1[i]));
+                const double ref = std::max(std::abs(x0[i]), std::abs(x1[i]));
                 const double xmin = (i >= 4) ? set.Ymin : 0.0; // only mass fractions have a floor
                 if (ref <= xmin || ref == 0.0) continue;
-                const double di = std::abs(x1[i] - nd.x0[i]) / ref * scale;
+                const double di = std::abs(x1[i] - x0[i]) / ref * scale;
                 if (di > nd.d) {
                     nd.d = di;
                     nd.worst = names[i];
                 }
             }
         }
-        nd.x0 = x1;
-        nd.t0 = t1;
-        return !first;
+        return full;
     }
 
     // Counters and convergence of the groups after evaluate() of every node not converged yet.
@@ -164,7 +180,7 @@ public:
                     if (nodes[u].group != static_cast<int>(g) && !nodes[u].converged) ok = false;
             }
             counter[g] = ok ? counter[g] + 1 : 0;
-            if (counter[g] * set.w >= set.W) {
+            if (counter[g] >= set.confirm) {
                 for (size_t v : groups[g]) nodes[v].converged = true;
                 newly.push_back(g);
             }
@@ -188,7 +204,7 @@ public:
         for (size_t u : groups[g]) {
             if (nodes[u].reservoir) continue;
             nodes[u].converged = false;
-            nodes[u].t0 = -1.0;
+            nodes[u].history.clear();
             members.push_back(u);
         }
         return members;

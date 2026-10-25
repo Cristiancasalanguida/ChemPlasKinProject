@@ -72,7 +72,8 @@ struct MassFlowControllerDef {
 struct OutflowIntegral {
     std::vector<double> Y, Ya, Yb; // integrals of the mass fractions; state at the last point and work vector
     double H = 0.0, T = 0.0;       // integrals of h [J/kg s] and T [K s]
-    double ha = 0.0, Ta = 0.0, ta = 0.0;
+    double P = 0.0;                // CRN_v7: integral of p [Pa s] (steady state check)
+    double ha = 0.0, Ta = 0.0, pa = 0.0, ta = 0.0;
 
     // integrals set to zero, first point at time t (current state of gas)
     void start(ThermoPhase& gas, double t) {
@@ -83,21 +84,24 @@ struct OutflowIntegral {
         gas.getMassFractions(Ya.data());
         ha = gas.enthalpy_mass();
         Ta = gas.temperature();
+        pa = gas.pressure();
         ta = t;
-        H = T = 0.0;
+        H = T = P = 0.0;
     }
     // adds the interval [ta, t]; gas holds the state at t
     void add(ThermoPhase& gas, double t) {
         if (t <= ta) return;
         gas.getMassFractions(Yb.data());
-        const double hb = gas.enthalpy_mass(), Tb = gas.temperature();
+        const double hb = gas.enthalpy_mass(), Tb = gas.temperature(), pb = gas.pressure();
         const double w = 0.5 * (t - ta);
         for (size_t k = 0; k < Y.size(); k++) Y[k] += w * (Ya[k] + Yb[k]);
         H += w * (ha + hb);
         T += w * (Ta + Tb);
+        P += w * (pa + pb);
         Ya.swap(Yb);
         ha = hb;
         Ta = Tb;
+        pa = pb;
         ta = t;
     }
 };
@@ -142,9 +146,9 @@ struct ReactorState {
     // new pulse); the energy of the current pulse is Ep - EpOffset
     double EpOffset = 0.0;
     double lastWriteTime = -1.0; // time of the last row of the output file
-    // CRN_v7: time integrals of Y and T since the last steady state check (period averages)
+    // CRN_v7: time integrals of Y, T and p since the last steady state check (pulse averages)
     std::vector<double> periodY;
-    double periodT = 0.0, periodDt = 0.0;
+    double periodT = 0.0, periodP = 0.0, periodDt = 0.0;
 };
 
 struct ReservoirState {
@@ -505,6 +509,7 @@ void accumulateOutflow(ReactorState& s, std::map<std::string, MassFlowController
     if (s.periodY.size() != s.outInt.Y.size()) s.periodY.assign(s.outInt.Y.size(), 0.0);
     for (size_t k = 0; k < s.periodY.size(); k++) s.periodY[k] += s.outInt.Y[k];
     s.periodT += s.outInt.T;
+    s.periodP += s.outInt.P;
     s.periodDt += dt;
 
     for (auto& [name, mfc] : mfcs) {
@@ -888,7 +893,13 @@ int main(int argc, char *argv[]) {
     // CRN_v7 (optional): steady state of the network (see steadyState.h); steadyStateW = 0 (default) = off
     SteadyState::Monitor steady;
     steady.set.W = (int)readParameter<double>(controlDictPath, "steadyStateW", 0.0);
-    steady.set.w = std::max(1, (int)readParameter<double>(controlDictPath, "steadyStateCluster", 1.0));
+    // sample every W/k pulses (k = steadyStateSamples, default 10), or every steadyStateCluster pulses if given
+    {
+        const double k = std::max(1.0, readParameter<double>(controlDictPath, "steadyStateSamples", 10.0));
+        const double wDefault = std::max(1.0, std::round(steady.set.W / k));
+        steady.set.w = std::max(1, (int)readParameter<double>(controlDictPath, "steadyStateCluster", wDefault));
+    }
+    steady.set.confirm = std::max(1, (int)readParameter<double>(controlDictPath, "steadyStateConfirm", 1.0));
     steady.set.tol = readParameter<double>(controlDictPath, "steadyStateTol", steady.set.tol);
     steady.set.Ymin = readParameter<double>(controlDictPath, "steadyStateYmin", steady.set.Ymin);
     steady.set.tau = readParameter<double>(controlDictPath, "steadyStateTau", steady.set.tau);
@@ -1157,8 +1168,9 @@ int main(int argc, char *argv[]) {
             if (std::find(up.begin(), up.end(), u) == up.end()) up.push_back(u);
         }
         steady.buildGroups();
-        std::cout << "Steady state monitor: W = " << steady.set.W << " pulses, check every " << steady.set.w
-                  << " pulses, tol = " << steady.set.tol
+        std::cout << "Steady state monitor: sample every " << steady.set.w << " pulses, compared with the sample "
+                  << steady.windowBlocks() * steady.set.w << " pulses before (W), " << steady.set.confirm
+                  << " comparison(s) below tol = " << steady.set.tol
                   << ", Ymin = " << steady.set.Ymin << ", tau = "
                   << (steady.set.tau > 0.0 ? std::to_string(steady.set.tau) + " s" : std::string("residence time (filling time without outflow, W periods if closed)")) << "\nGroups:";
         for (const auto& g : steady.groups) {
@@ -1718,16 +1730,16 @@ int main(int argc, char *argv[]) {
         dTdtcheck = *std::max_element(dTdt_vec.begin(), dTdt_vec.end());
 
         // CRN_v7: steady state check at the flow updates on a pulse boundary (samples at the same phase)
-        // every steadyStateCluster = w pulse periods (the first boundary at least w - 0.5 periods after the last
+        // every w = W/k pulse periods (the first boundary at least w - 0.5 periods after the last
         // check; the last interval up to t_end can be very short)
         if (steady.set.W > 0 && std::abs(std::remainder(runTime - startTime, pulsePeriod)) < 1e-9 * pulsePeriod
             && runTime - lastCheck > (steady.set.w - 0.5) * pulsePeriod) {
             lastCheck = runTime;
             std::vector<bool> evaluated(steady.nodes.size(), false);
-            // Reactors (the reservoirs are at steady state by definition): T and Y averaged over the block
-            // since the last check (the state seen downstream; the instantaneous values of the short-lived
-            // species at the end of the period are at the end of their decay and change a lot between pulses
-            // without any drift); p, mdot_in, mdot_out at the check
+            // Reactors (the reservoirs are at steady state by definition): T, p and Y averaged over the block
+            // of pulses since the last check (the state seen downstream; the instantaneous values of the
+            // short-lived species at the end of the period are at the end of their decay and change a lot
+            // between pulses without any drift); mdot_in and mdot_out (constant between flow updates) at the check
             for (size_t i = 0; i < reactors.size(); i++) {
                 const size_t v = reactorNode[i];
                 if (steady.nodes[v].converged) continue;
@@ -1741,10 +1753,11 @@ int main(int argc, char *argv[]) {
                 st.gas->getMassFractions(x.data() + 4);
                 if (st.periodDt > 0.0) {
                     x[0] = st.periodT / st.periodDt;
+                    x[1] = st.periodP / st.periodDt;
                     for (size_t k = 0; k < st.periodY.size(); k++) x[4 + k] = st.periodY[k] / st.periodDt;
                 }
                 std::fill(st.periodY.begin(), st.periodY.end(), 0.0);
-                st.periodT = st.periodDt = 0.0;
+                st.periodT = st.periodP = st.periodDt = 0.0;
                 const double mass = st.gas->density() * reactorZones.at(st.name).volume;
                 // time scale: residence time m/mdot_out; without outflow the filling time m/mdot_in (then
                 // d_m = 1: never at steady state); closed reactor: the window of W pulse periods

@@ -7,13 +7,13 @@ ChemPlasKin solves coupled gas–plasma kinetics in 0D reactors:
 
 `CRN_v7` is `CRN_v6` with a **steady-state criterion for the network**. A reactor that reaches steady state, together with the reactors upstream of it, is no longer integrated: its outflow stays at the average of its last block of pulses. The run stops when the whole network is at steady state, and a frozen reactor is integrated again if its inflows change.
 
-On the CRN_serialPlasma case, R2 (residence time ~2400 pulses) is not at steady state after 7500 pulses. v7 brings it there: R1 freezes at pulse ~7600, R2 at pulse ~34 600, in about 280 s of CPU time. At steady state the outlet NO is 35% and H₂O 34% higher than at 7500 pulses.
+On the CRN_serialPlasma case, R2 (residence time ~2400 pulses) is not at steady state after 7500 pulses. v7 brings it there: with the `autoplay` settings R1 freezes at pulse ~8200, R2 at pulse ~35 100, in about 300 s of CPU time. At steady state the outlet NO is 35% and H₂O 34% higher than at 7500 pulses.
 
 New in v7:
 
 | Feature | Description |
 |---|---|
-| Steady-state monitor (`steadyState.h`) | Check every w pulses on the block averages, relative criterion projected over the residence time, counter per group (section 6) |
+| Steady-state monitor (`steadyState.h`) | A sample (pulse average) every W/k pulses, compared with the sample W pulses before; relative criterion projected over the residence time; one comparison per group (section 6) |
 | Recirculation | The reactors of a loop of the flow graph form one group with a common counter: they converge together |
 | Mass balance | A reactor with a net inflow or outflow is never at steady state |
 | Freezing and release | A reactor at steady state is no longer integrated. It is integrated again if a flow rate changes, or the state of an inflow from a reservoir or a non-frozen reactor changes |
@@ -136,8 +136,10 @@ All dictionary files use the OpenFOAM-style syntax: `key value;`, blocks `name {
 | `writeInterval` | no | s | interval between output rows. `0` (default) = every step |
 | `reinitEveryStep` | no | 0/1 | `1` = restart CVODE at every step, as in v3. Default `0` |
 | `integrateToFlowUpdate` | no | 0/1 | `1` (default) = reactors without discharge (`discharge no`) take one integration up to the flow update; `0` = they take the `findTimeStep` steps as the discharge reactors. Always 0 with `reinitEveryStep 1` |
-| `steadyStateW` | no | pulses | W: number of consecutive pulses below the threshold to declare steady state. `0` (default) = monitor off |
-| `steadyStateCluster` | no | pulses | w: one check every w pulses, on the block averages. Default 1 |
+| `steadyStateW` | no | pulses | W: window of the comparison (each sample is compared with the sample W pulses before). `0` (default) = monitor off |
+| `steadyStateSamples` | no | – | k: samples per window, i.e. one sample (and one comparison) every W/k pulses. Default 10 |
+| `steadyStateCluster` | no | pulses | interval between two samples, instead of W/k |
+| `steadyStateConfirm` | no | – | consecutive comparisons below the threshold to declare steady state. Default 1 (a comparison already spans W pulses) |
 | `steadyStateTol` | no | – | threshold on d. Default 1e-3 |
 | `steadyStateYmin` | no | – | mass fractions below this value (in both samples) are not checked. Default 1e-12 |
 | `steadyStateTau` | no | s | time scale τ of d for all reactors. `0` (default) = τ of each reactor (section 6.2) |
@@ -145,7 +147,7 @@ All dictionary files use the OpenFOAM-style syntax: `key value;`, blocks `name {
 
 With the monitor on, `flowUpdateInterval` and the period 1/`f_NRP` must be multiples of each other, because the checks are taken on pulse boundaries.
 
-`autoplay` values: `steadyStateW 100; steadyStateCluster 10; steadyStateTol 1e-3; steadyStateYmin 1e-10;`.
+`autoplay` values: `steadyStateW 1000; steadyStateSamples 10; steadyStateTol 1e-3; steadyStateYmin 1e-10;`.
 | `odes { reltol; abstol; }` | no | – | CVODE tolerances. Defaults 1e-9 and 1e-15. `abstol` applies to mass fractions, and electrons have Y ≈ 1e-15: with `abstol` > 1e-13 the electron density is no longer controlled |
 
 Example:
@@ -307,13 +309,15 @@ Reservoirs are at steady state by definition and are not checked.
 
 ### 6.2 Criterion
 
-A check takes place at a flow update on a pulse boundary, every w = `steadyStateCluster` pulses. For every reactor not frozen the following are sampled:
-- T and the mass fractions Y_k, **averaged over the block** of the last w pulses: this is the state passed downstream. The instantaneous state of the short-lived species at the end of a period jumps between pulses without any drift;
-- p, ṁ_in and ṁ_out at the time of the check.
+Every w = W/k pulses (k = `steadyStateSamples`, at a flow update on a pulse boundary) each reactor not frozen takes a **sample**:
+- T, p and the mass fractions Y_k, **averaged over the w pulses** since the previous sample: this is the state passed downstream. The instantaneous state of the short-lived species at the end of a period jumps between pulses without any drift;
+- ṁ_in and ṁ_out, constant between flow updates, at the time of the sample.
 
-For each quantity x, against the previous check:
+Each sample is compared with the sample of **W pulses before** (k samples back). The last k + 1 samples are kept, and the oldest one is dropped once it has been used. So a comparison over W pulses is made every W/k pulses, not every W. With W = 100 and k = 4: samples at 25, 50, 75, 100, 125, …, comparisons 25–125, 50–150, 75–175, … For each quantity x:
 
-    d = |x₁ − x₀| / max(|x₀|, |x₁|) · τ / Δt
+    d = |x(n) − x(n−k)| / max(|x(n)|, |x(n−k)|) · τ / (t(n) − t(n−k))
+
+A real drift gives the same d whether two adjacent samples or two samples W pulses apart are compared. The noise between samples, instead, is divided by the whole window W, so it weighs k times less than between adjacent samples. Until W pulses of samples are available (at the start, or after a release) no comparison is made.
 
 and for the mass balance:
 
@@ -336,11 +340,11 @@ Mass fractions below `steadyStateYmin` are not checked, because at that level th
 
 ### 6.3 Counter and freezing
 
-At every check, for every group not yet at steady state:
+At every comparison, for every group not yet at steady state:
 - if d < `steadyStateTol` for every quantity of **every** reactor of the group, and every node upstream of the group is at steady state, the counter n grows by 1;
 - otherwise n goes back to 0: a single reactor of the group above the threshold resets it.
 
-The group is at steady state when n·w ≥ W. Its reactors are no longer integrated, and their outflows keep the average of the last block. The downstream groups go on; with fixed inflows CVODE is not restarted, so they advance very fast. When all groups are at steady state (and `steadyStateStop 1`) the run stops.
+The group is at steady state when n ≥ `steadyStateConfirm` (default 1). A single comparison already spans W pulses, so steady state is detected at most W/k pulses after the whole window has settled. Its reactors are no longer integrated, and their outflows keep the average of the last sample. The downstream groups go on; with fixed inflows CVODE is not restarted, so they advance very fast. When all groups are at steady state (and `steadyStateStop 1`) the run stops.
 
 ### 6.4 Release
 
@@ -354,7 +358,11 @@ When a group is released, the counter and the samples start again. The pulse num
 
 ### 6.5 Choice of the parameters
 
-With a check at every pulse (w = 1), the pulse-to-pulse noise is amplified by τ/Δt (548 for R1). The period averages of ions and excited species below ~10⁻¹⁰ (O(1D), NO2⁺, OH⁺, …) change by 10⁻³–5·10⁻² without any drift, because of the discrete EEDF updates. With w = 10 and Ymin = 1e-10, instead, d of R1 decreases smoothly to ~10⁻³. With tol = 1e-3, at freezing the main species of R2 still move by ≤ 10⁻³ over one residence time.
+The noise between samples is amplified by τ/Δt, where Δt is the interval between the two samples compared:
+- **Species below ~10⁻¹⁰.** The pulse averages of ions and excited species (O(1D), NO2⁺, OH⁺, …) change by 10⁻³–5·10⁻² between pulses without any drift, because of the discrete EEDF updates. `steadyStateYmin 1e-10` leaves them out.
+- **Excited species above 10⁻¹⁰.** Species such as O2(b1) and O2(a1) in R1 (Y ~10⁻⁹) still change by ~4·10⁻⁴ between 10-pulse averages, because of small differences between the discharges. Over Δt = 10 pulses this gives d ≈ 2·10⁻² for R1 at steady state, far above tol = 10⁻³. Over W = 100 it is ~2·10⁻³, still above the threshold. Over W = 1000 it is ~2·10⁻⁴, below.
+- **Delay.** With the comparison over W, d measures the average drift over the last W pulses, so it falls below tol somewhat after the instantaneous drift does (~550 pulses for R1 with W = 1000). Steady state is then detected within W/k pulses (100 with k = 10). A counter requiring W more pulses below the threshold would add W pulses: R1 would freeze at pulse ~9070 instead of ~8200.
+- **Accuracy.** With tol = 1e-3, at freezing the main species of R2 still move by ≤ 10⁻³ over one residence time.
 
 Caveat: τ is the time scale of the mass renewal. When the chemistry of a reactor is slower (in R2 NO approaches steady state with a time constant of about 3τ), d underestimates the remaining distance. Use a tight threshold, or a longer `steadyStateTau`, in that case.
 
@@ -409,7 +417,7 @@ At the end of the run every reactor has a last row at the final time, even if it
 
 - **Run time without the monitor.** The full CRN_serialPlasma case (7500 pulses) takes about 310–320 s of CPU time with reltol 1e-9, about 296 s with reltol 1e-8. Over 80% of the time is the CVODE integration of the discharge reactor.
 - **Finer coupling.** With `flowUpdateInterval` shorter than the period (e.g. 4 updates per pulse) the coupling between reactors becomes finer. The conditional restart avoids restarting reactors fed only by reservoirs, but the cost still grows (about +16% with 4 updates per period).
-- **Run time with the monitor.** On CRN_serialPlasma (W 100, w 10, tol 1e-3) the run reaches steady state in about 280 s of CPU time: ~7600 pulses with R1, then R2 alone up to pulse ~34 600. The phase with R2 alone costs a few seconds every 10⁴ pulses.
+- **Run time with the monitor.** On CRN_serialPlasma (W 1000, k 10, tol 1e-3) the run reaches steady state in about 300 s of CPU time: ~8200 pulses with R1, then R2 alone up to pulse ~35 100. The phase with R2 alone costs a few seconds every 10⁴ pulses. CRN_v8 (analytic Jacobian) takes 230 s on the same case.
 - **Checking the parameters.** To see how d decreases without freezing anything, run with an unreachable threshold (`steadyStateTol 1e-30`) and analyse `steadyState.csv`.
 - **Timing under WSL.** Times measured with `/usr/bin/time` jitter by ±1–2 s. Compare runs with the CPU time printed at the end.
 - **Species outside CppBOLOS.** If a species not listed in `BoltzmannSpecies` exceeds a mole fraction of 1e-2, a warning is printed.
