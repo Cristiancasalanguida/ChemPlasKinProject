@@ -44,3 +44,4 @@ cmake-build-debug/
 # Output e log delle simulazioni
 Thesis/**/output/
 Thesis/**/*.log
+__pycache__/

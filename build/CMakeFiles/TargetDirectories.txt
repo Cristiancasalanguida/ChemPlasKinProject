@@ -1,3 +1,0 @@
-/home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/build/CMakeFiles/ChemPlasKin.dir
-/home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/build/CMakeFiles/edit_cache.dir
-/home/cristiancasalanguida/ChemPlasKinProject/ChemPlasKin/build/CMakeFiles/rebuild_cache.dir
