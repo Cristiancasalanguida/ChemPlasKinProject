@@ -1868,7 +1868,13 @@ int main(int argc, char *argv[]) {
         if (steady.set.W > 0) {
             std::cout << "Steady state not reached by:";
             for (const auto& nd : steady.nodes)
-                if (!nd.converged) std::cout << " " << nd.name << " (d = " << nd.d << ", " << nd.worst << ")";
+                if (!nd.converged) {
+                    std::cout << " " << nd.name;
+                    if (nd.history.size() < steady.windowBlocks() + 1)
+                        std::cout << " (no comparison yet: less than W pulses of samples)";
+                    else
+                        std::cout << " (d = " << nd.d << ", " << nd.worst << ")";
+                }
             std::cout << std::endl;
         }
     } else if (dTdtcheck <= dTdt_min) {

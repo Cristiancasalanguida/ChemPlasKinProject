@@ -127,7 +127,7 @@ All dictionary files use the OpenFOAM-style syntax: `key value;`, blocks `name {
 |---|---|---|---|
 | `startTime` | yes | s | start time (in `autoplay`, the end time of the Cantera phase) |
 | `endTime` | yes | s | end time. The run ends at max(`endTime`, `startTime` + `nPulses`/`f_NRP`), or earlier when the network reaches steady state |
-| `nPulses` | yes | – | number of pulses. With the monitor on it is a maximum (in `autoplay`: 1e5) |
+| `nPulses` | yes | – | number of pulses. With the monitor on the run stops at the first of the end time and the steady state of the whole network: give enough pulses to reach steady state (CRN_serialPlasma: ~35 000) |
 | `endTimeForce` | no | s | if given, upper bound of the end time |
 | `dt1` | yes | s | fixed step during the discharge of the first two pulses |
 | `dt_max` | yes | s | largest step |
@@ -450,7 +450,7 @@ In addition, in v7:
 
 The one-interval lag of the coupling between reactors has no effect at periodic steady state, when the average outflow of a reactor is the same every period. In the transient it moves NO and H₂O of R2 by 0.3–0.6% compared with a coupling 4–10 times finer.
 
-**Stop:** the end time is reached, max(dT/dt) ≤ `dTdt_min`, or (monitor on and `steadyStateStop 1`) the whole network is at steady state.
+**Stop:** at the first of: the end time max(`endTime`, `startTime` + `nPulses`/`f_NRP`) (or `endTimeForce`) is reached; max(dT/dt) ≤ `dTdt_min`; (monitor on and `steadyStateStop 1`) the whole network is at steady state. If the end time comes first, the reactors not at steady state are listed with their last d and worst quantity, or with "no comparison yet" when less than W pulses of samples were taken.
 
 ## 9. Output (`<case>/output/`)
 
