@@ -57,6 +57,11 @@ pulseEnergy      0.1;  // Input energy per pulse [mJ*cm^-3]
 
 pulseWidth       2.e-8; // Pulse width limit [s]
 
+// Duty cycle (optional): discharge on for N_ON pulse periods out of every N_ON/r_dc (integer).
+// The periods off count as pulses (nPulses). Default N_ON 1, r_dc 1.0: discharge in every period
+N_ON             1;
+r_dc             1.0;
+
 // Criteria of updating electron Boltzmann solver
 TGAS_TOLERANCE   0.5; // Absolute tolerance of gas temperature change [K]
 EN_TOLERANCE     0.5; // Absolute tolerance of E/N change [Td]

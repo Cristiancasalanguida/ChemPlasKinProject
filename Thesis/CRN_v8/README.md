@@ -9,6 +9,8 @@ ChemPlasKin solves coupled gas–plasma kinetics in 0D reactors:
 
 On the CRN_serialPlasma case (full run to steady state, W 1000, k 10, tol 1e-3) the run takes 230 s of CPU time against 299 s for v7 (**−23%**). The reactors freeze at the same pulses (R1 ~8200, R2 ~35 100), and the steady states agree within 4·10⁻⁵.
 
+v8 also adds a **duty cycle** for the discharge (section 8.1). The keys are `N_ON` and `r_dc` in `chemPlasProperties`. The discharge is on for `N_ON` pulse periods and off for the next `N_OFF` = `N_ON`/`r_dc` − `N_ON`. The default (`N_ON 1`, `r_dc 1.0`) is the continuous NRP train, bit-identical to the version without a duty cycle.
+
 `CRN_v7` is `CRN_v6` with a **steady-state criterion for the network**. A reactor that reaches steady state, together with the reactors upstream of it, is no longer integrated: its outflow stays at the average of its last block of pulses. The run stops when the whole network is at steady state, and a frozen reactor is integrated again if its inflows change.
 
 On the CRN_serialPlasma case, R2 (residence time ~2400 pulses) is not at steady state after 7500 pulses. v7 brings it there: with the `autoplay` settings R1 freezes at pulse ~8200, R2 at pulse ~35 100, in about 300 s of CPU time. At steady state the outlet NO is 35% and H₂O 34% higher than at 7500 pulses.
@@ -127,9 +129,9 @@ All dictionary files use the OpenFOAM-style syntax: `key value;`, blocks `name {
 |---|---|---|---|
 | `startTime` | yes | s | start time (in `autoplay`, the end time of the Cantera phase) |
 | `endTime` | yes | s | end time. The run ends at max(`endTime`, `startTime` + `nPulses`/`f_NRP`), or earlier when the network reaches steady state |
-| `nPulses` | yes | – | number of pulses. With the monitor on the run stops at the first of the end time and the steady state of the whole network: give enough pulses to reach steady state (CRN_serialPlasma: ~35 000) |
+| `nPulses` | yes | – | number of pulses (pulse periods). With a duty cycle the periods off are counted too. With the monitor on the run stops at the first of the end time and the steady state of the whole network: give enough pulses to reach steady state (CRN_serialPlasma: ~35 000) |
 | `endTimeForce` | no | s | if given, upper bound of the end time |
-| `dt1` | yes | s | fixed step during the discharge of the first two pulses |
+| `dt1` | yes | s | fixed step during the first two discharges (periods off of the duty cycle not counted) |
 | `dt_max` | yes | s | largest step |
 | `pulseExten` | yes | s | length of the fine-step phase from the start of each pulse. Clipped between `pulseWidth` and the period |
 | `NstepInPulse` | yes | – | number of (logarithmic) steps during the discharge, from the third pulse on |
@@ -153,7 +155,7 @@ All dictionary files use the OpenFOAM-style syntax: `key value;`, blocks `name {
 | `jacobianCheck` | no | N | `N > 0`: every N-th analytic Jacobian is compared with a finite-difference one, and the largest scaled difference is printed (diagnostics, slow). Default 0 |
 | `jacobianSkipFalloff`, `jacobianSkipThirdBodies` | no | 0/1 | leave the falloff or third-body terms out of the kinetics derivatives (approximate Jacobian). No gain on CRN_serialPlasma. Default 0 |
 
-With the monitor on, `flowUpdateInterval` and the period 1/`f_NRP` must be multiples of each other, because the checks are taken on pulse boundaries.
+With the monitor on, `flowUpdateInterval` and the period 1/`f_NRP` must be multiples of each other, because the checks are taken on pulse boundaries. With a duty cycle, W and W/k should also be multiples of `N_ON` + `N_OFF` (section 8.1). Otherwise a warning is printed at start.
 
 `autoplay` values: `steadyStateW 1000; steadyStateSamples 10; steadyStateTol 1e-3; steadyStateYmin 1e-10; jacobian analytic;`.
 | `odes { reltol; abstol; }` | no | – | CVODE tolerances. Defaults 1e-9 and 1e-15. `abstol` applies to mass fractions, and electrons have Y ≈ 1e-15: with `abstol` > 1e-13 the electron density is no longer controlled |
@@ -193,6 +195,8 @@ odes { reltol 1e-9; abstol 1e-15; }
 | `f_NRP` | yes | Hz | pulse frequency |
 | `pulseEnergy` | yes | mJ/cm³ | energy per pulse: the discharge stops when it is reached |
 | `pulseWidth` | yes | s | largest discharge duration |
+| `N_ON` | no | – | duty cycle: number of consecutive pulse periods with the discharge on (integer ≥ 1). Default 1 |
+| `r_dc` | no | – | duty-cycle ratio `N_ON`/(`N_ON` + `N_OFF`), in (0, 1]. `N_ON`/`r_dc` must be an integer. Default 1.0 (no periods off) |
 | `TGAS_TOLERANCE` | yes | K | change of T beyond which the EEDF is recomputed |
 | `EN_TOLERANCE` | yes | Td | change of E/N beyond which the EEDF is recomputed |
 | `csDataFile` | yes | path | LXCat cross sections |
@@ -452,12 +456,37 @@ The one-interval lag of the coupling between reactors has no effect at periodic 
 
 **Stop:** at the first of: the end time max(`endTime`, `startTime` + `nPulses`/`f_NRP`) (or `endTimeForce`) is reached; max(dT/dt) ≤ `dTdt_min`; (monitor on and `steadyStateStop 1`) the whole network is at steady state. If the end time comes first, the reactors not at steady state are listed with their last d and worst quantity, or with "no comparison yet" when less than W pulses of samples were taken.
 
+### 8.1 Duty cycle
+
+The pulse periods are grouped in cycles of `N_ON` + `N_OFF` = `N_ON`/`r_dc` periods. Period `iPulse` (counted from 0) has a discharge when
+
+    iPulse mod (N_ON + N_OFF) < N_ON
+
+so each cycle starts with the `N_ON` periods on. Example: `N_ON 2; r_dc 0.4;` gives cycles of 5 periods, with discharges in 0, 1, 5, 6, 10, 11, …
+
+The periods off are **counted and skipped**: `iPulse` advances in them as in the periods on. So x pulses always last x/`f_NRP`, whatever the duty cycle, and with the same `nPulses` the run covers the same time with fewer discharges (`r_dc`·`nPulses`). The flow updates, the steady-state check and the stop criteria do not change.
+
+In a period off of a discharge reactor:
+- E/N stays at the base value (max(E/N(DC), 0.1 Td)) for the whole period, and the steps are those between two pulses (`dt_max`, cut at the next period);
+- there is no switch to constant volume (`heatLoss`) and no isentropic expansion;
+- Ep is not reset (it is kept as an offset, as in reactors without discharge), so CVODE is not restarted at the start of the period. `Energy_deposited` is still the energy since the start of the period.
+
+The steps of the discharge follow the count of the discharges, not of the periods:
+- `dt1` is used in the first two discharges;
+- the log-dynamic steps use n_e at the end of the previous discharge and at the start of the current one, which may be several periods apart.
+
+Reactors without discharge are not affected.
+
+Choice of the other parameters:
+- **Steady state.** Two samples at different phases of the cycle differ even at periodic steady state. With the monitor on, take W and W/k as multiples of `N_ON` + `N_OFF`; otherwise a warning is printed.
+- **Flow coupling.** Likewise, with `flowUpdateInterval` = 1/`f_NRP` the outflow passed downstream changes from period to period along the cycle. This is physical, but a downstream reactor is then never "periodic" over one period.
+
 ## 9. Output (`<case>/output/`)
 
 | File | Content |
 |---|---|
 | `<reactor>.csv` | `Time(s), T_gas(K), p(Pa), N_gas(#/cm^3), MW(kg/kmol)`, number density [#/cm³] of each species, `Power_input(W/cm^3), Energy_deposited(mJ/cm^3)`. One row every `writeInterval` and at the last time. Reactors without discharge with `integrateToFlowUpdate 1` write only at the flow updates (with `flowUpdateInterval = 1/f_NRP`, one row per pulse) |
-| `<reactor>_pulses.csv` | discharge reactors only, one row per pulse: `iPulse, Time(s)` (end of the period), `T_gas, p, n_e_end, n_e_max, Energy_deposited` (at the end of the period), `tau_NRP(s)` (discharge duration), `Energy_discharge(mJ/cm^3)` (energy at the end of the discharge) |
+| `<reactor>_pulses.csv` | discharge reactors only, one row per pulse: `iPulse, Time(s)` (end of the period), `T_gas, p, n_e_end, n_e_max, Energy_deposited` (at the end of the period), `tau_NRP(s)` (discharge duration), `Energy_discharge(mJ/cm^3)` (energy at the end of the discharge), `Discharge_on` (1 = period with discharge, 0 = period off of the duty cycle, with `tau_NRP` = `Energy_discharge` = 0) |
 | `massflow.csv` | time and flow rate [kg/s] of every controller at every update |
 | `<reservoir>.csv` | state of the reservoirs (same columns, without power and energy) |
 | `<case>/eedfTable.yaml` | EEDF table, updated during the run (unless `eedfTable` is `none`) |

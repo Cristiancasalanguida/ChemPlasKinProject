@@ -14,7 +14,8 @@
 |-----------------------------------------------------------------------------|
 |   Reactor Network module made by: Cristian Casalanguida                     |
 |   Contact:      cristian.casalanguida@studenti.polito.it                    |
-|   Last edit:    2026-10-26 (CRN_v8: CVODES with analytic Jacobian,          |
+|   Last edit:    2026-11-03 (CRN_v8: duty cycle of the discharge, N_ON and   |
+|                 r_dc; CVODES with analytic Jacobian,                        |
 |                 cvodeJac.h; CRN_v7: steady state of the network, stop of    |
 |                 converged reactors, steadyState.h; CRN_v6: reactors         |
 |                 integrated independently up to the next flow update;        |
@@ -151,6 +152,18 @@ struct ReactorState {
     // CRN_v7: time integrals of Y, T and p since the last steady state check (pulse averages)
     std::vector<double> periodY;
     double periodT = 0.0, periodP = 0.0, periodDt = 0.0;
+};
+
+// CRN_v8: duty cycle of the discharge. Out of every cycle of nCycle = N_ON/r_dc pulse periods the discharge is
+// on in the first N_ON and off in the other N_OFF = nCycle - N_ON. The periods off are counted as pulses
+// (iPulse, nPulses), skipped. Default N_ON = 1, r_dc = 1: discharge in every period
+struct DutyCycle {
+    int nOn = 1;
+    int nCycle = 1;
+    // discharge on in the pulse period iPulse
+    bool on(int iPulse) const { return iPulse % nCycle < nOn; }
+    // number of discharges before the pulse period iPulse (= iPulse without duty cycle)
+    int nDischarges(int iPulse) const { return (iPulse / nCycle) * nOn + std::min(iPulse % nCycle, nOn); }
 };
 
 struct ReservoirState {
@@ -401,7 +414,7 @@ ReactorState createReactorState(
             throw std::runtime_error("Failed to open pulse file for reactor: " + name);
         }
         state.pulseFile << "iPulse, Time(s), T_gas(K), p(Pa), n_e_end(#/cm^3), n_e_max(#/cm^3), "
-                        << "Energy_deposited(mJ/cm^3), tau_NRP(s), Energy_discharge(mJ/cm^3)" << std::endl;
+                        << "Energy_deposited(mJ/cm^3), tau_NRP(s), Energy_discharge(mJ/cm^3), Discharge_on" << std::endl;
     }
 
     return state;
@@ -620,6 +633,7 @@ void findTimeStep(
     bool stayEN_DC, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
     const std::string& CP_or_CV, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
     int iPulse, int nPulses, // TO VECTORIZE IF THE REACTORS ARE INDEPENDENT
+    const DutyCycle& duty,
     double& dt,
     double dt1,
     double dt_max,
@@ -649,10 +663,12 @@ void findTimeStep(
         double dt3 = startTime + (iPulse + 1) * pulsePeriod - runTime; // Avoid overstepping
         dt_ig = std::min(dt3, dt_ig);
 
-        if ((runTime + SMALL) < (startTime + iPulse * pulsePeriod + pulseExten)){ // During pulse or pulse extension
+        // CRN_v8: in the periods off of the duty cycle the whole period is as between pulses
+        if (duty.on(iPulse) && (runTime + SMALL) < (startTime + iPulse * pulsePeriod + pulseExten)){ // During pulse or pulse extension
             if (g_verbose) std::cout << " Reactor " << state.name << " discharging: " << (config.discharge ? "ON" : "OFF") << "; runTime = " << runTime << "; iPulse = " << iPulse << std::endl;
             if ((runTime + SMALL) < (startTime + iPulse * pulsePeriod + pulseWidth) && dischargeOn) { // During discharge
-                if (iPulse <= 1 || nE_1 < 1e10) {
+                // first two discharges (CRN_v8: periods off of the duty cycle not counted)
+                if (duty.nDischarges(iPulse) <= 1 || nE_1 < 1e10) {
                     if (g_verbose) std::cout << "Using fixed time step for first two pulses." << std::endl;
                     dt = dt1;
                 } else {
@@ -686,7 +702,7 @@ void findTimeStep(
 
                         fastExpansion = true;
                     }
-                double K = (iPulse <= 1 || nE_2 < 1e10) ? -1 : std::min(round(log10(nE_3 / nE_2) * 100) / 100, -0.1); // fixed K for first two pulses
+                double K = (duty.nDischarges(iPulse) <= 1 || nE_2 < 1e10) ? -1 : std::min(round(log10(nE_3 / nE_2) * 100) / 100, -0.1); // fixed K for first two pulses
                 if (g_verbose) std::cout << "Decay order K = " << K << std::endl;
                 dt = (iStepAfPulse >= NstepAfPulse) ? // Make dt unchanged for iStepAfPulse >= NstepAfPulse to cut off dt growth
                     dt : logDynamicTimestep(K, pulseExten, NstepAfPulse, iStepAfPulse);
@@ -895,6 +911,32 @@ int main(int argc, char *argv[]) {
     const double pulseWidth = readParameter<double>(parameterPath, "pulseWidth");
     double pulseExten = readParameter<double>(controlDictPath, "pulseExten");
     pulseExten = std::min(std::max(pulseExten, pulseWidth), 1.0/f_NRP); // Ensure pulse extension is not shorter than pulse width and not longer than pulse period
+    // CRN_v8 (optional): duty cycle, discharge on for N_ON pulse periods out of every N_ON/r_dc (N_OFF = N_ON/r_dc - N_ON)
+    DutyCycle duty;
+    {
+        const double nOn = readParameter<double>(parameterPath, "N_ON", 1.0);
+        const double r_dc = readParameter<double>(parameterPath, "r_dc", 1.0);
+        if (nOn < 1.0 || std::abs(nOn - std::round(nOn)) > 1e-9) {
+            std::cerr << "Error: N_ON in chemPlasProperties must be an integer >= 1 (it is " << nOn << ")." << std::endl;
+            return 1;
+        }
+        if (!(r_dc > 0.0 && r_dc <= 1.0)) {
+            std::cerr << "Error: r_dc in chemPlasProperties must be in (0, 1] (it is " << r_dc << ")." << std::endl;
+            return 1;
+        }
+        const double nCycle = std::round(nOn) / r_dc;
+        if (std::abs(nCycle - std::round(nCycle)) > 1e-6 * nCycle) {
+            std::cerr << "Error: N_ON/r_dc = N_ON + N_OFF must be an integer (it is " << nCycle << " with N_ON = "
+                      << nOn << ", r_dc = " << r_dc << ")." << std::endl;
+            return 1;
+        }
+        duty.nOn = (int)std::round(nOn);
+        duty.nCycle = (int)std::round(nCycle);
+        if (duty.nCycle > duty.nOn) {
+            std::cout << "Duty cycle: discharge on for " << duty.nOn << " pulse period(s), off for " << duty.nCycle - duty.nOn
+                      << " (r_dc = " << (double)duty.nOn / duty.nCycle << ")" << std::endl;
+        }
+    }
     const int NstepInPulse = readParameter<int>(controlDictPath, "NstepInPulse");
     const int NstepAfPulse = readParameter<int>(controlDictPath, "NstepAfPulse");
     double dT_max = readParameter<double>(controlDictPath, "dT_max");
@@ -1206,6 +1248,11 @@ int main(int argc, char *argv[]) {
             std::cout << "]";
         }
         std::cout << std::endl;
+        // CRN_v8: samples at different phases of the duty cycle differ without any drift
+        if (duty.nCycle > 1 && (steady.set.w % duty.nCycle != 0 || steady.set.W % duty.nCycle != 0)) {
+            std::cout << "Warning: steadyStateW and the sample interval (" << steady.set.w << " pulses) are not multiples of "
+                      << "the duty cycle (N_ON + N_OFF = " << duty.nCycle << " pulses): the steady state may not be detected." << std::endl;
+        }
         steadyFile.open(outputDir + "/steadyState.csv");
         steadyFile << "Time(s), node, d_max, worst, counter, converged\n";
     }
@@ -1400,7 +1447,7 @@ int main(int argc, char *argv[]) {
                     const bool onBoundary = std::abs(tp - std::round(tp)) < 1e-9;
                     iPulse_vec[i] = std::min(static_cast<int>(std::floor(tp + 1e-9)), nPulses);
                     plasmaOn_vec[i] = iPulse_vec[i] < nPulses;
-                    dischargeOn_vec[i] = plasmaOn_vec[i] && onBoundary;
+                    dischargeOn_vec[i] = plasmaOn_vec[i] && onBoundary && duty.on(iPulse_vec[i]);
                     st.odes->resetDepositedPlasmaEnergy();
                     st.EpOffset = 0.0;
                     disEnergy_vec[i] = 0.0;
@@ -1570,7 +1617,7 @@ int main(int argc, char *argv[]) {
 
                 double dt_element = dt_vec[idx];
                 findTimeStep(state, config, tReactor, startTime, SMALL, pulsePeriod, pulseWidth, pulseExten, dischargeOn, fastExpansion, stayEN_DC,
-                            CP_or_CV, iPulse, nPulses, dt_element, dt1, dt_max, dT, dT_max, dTdt,
+                            CP_or_CV, iPulse, nPulses, duty, dt_element, dt1, dt_max, dT, dT_max, dTdt,
                             nE_1, nE_2, nE_3, tau_NRP, disEnergy,
                             iStepInPulse, NstepInPulse,
                             iStepAfPulse, NstepAfPulse,
@@ -1625,7 +1672,7 @@ int main(int argc, char *argv[]) {
                 // CRN_v4: restart CVODE only when something outside the ODE changed
                 // (new EEDF, new flows, energy reset at a new pulse, heat-loss jump)
                 // Discharge on in this step: same condition as findTimeStep
-                const bool discharging = config.discharge && iPulse < nPulses && dischargeOn
+                const bool discharging = config.discharge && iPulse < nPulses && dischargeOn && duty.on(iPulse)
                                          && (runTimeOld + SMALL < startTime + iPulse * pulsePeriod + pulseWidth);
                 // Both integrators go on from the CVODE internal step: restart if it is unknown (-1)
                 if (state.tInternal < 0.0) state.needsReinit = true;
@@ -1685,7 +1732,8 @@ int main(int argc, char *argv[]) {
                 double power_temp = state.elecPower
                                     * Avogadro * state.gas->molarDensity()* ElectronCharge * ne;
                 // unit: eV m^3/s * #/kmol * kmol/m^3 * coulomb(J/eV) * #/cm^3 = J/s/cm^3
-                disEnergy = 1e-3 * state.odes->depositedPlasmaEnergy(); // mJ/cm^3
+                // CRN_v8: EpOffset != 0 only in the periods off of the duty cycle (Ep not reset there)
+                disEnergy = 1e-3 * (state.odes->depositedPlasmaEnergy() - state.EpOffset); // mJ/cm^3
 
                 if (doWrite) writeReactorRow(state, runTime, power_temp, disEnergy);
                 if (g_verbose) std::cout << "Power_input [W/cm^3]: " << power_temp << " | Energy deposited [mJ/cm^3]: " << disEnergy << "\n";
@@ -1704,9 +1752,12 @@ int main(int argc, char *argv[]) {
                 // Trigger plasmaOn only ONCE for a new pulse
                 if (runTime + SMALL >= ((iPulse + 1) * pulsePeriod + startTime)) { // Entering next pulse period
                     if (state.pulseFile.is_open()) {
+                        // CRN_v8: periods off of the duty cycle with tau_NRP = Energy_discharge = 0, Discharge_on = 0
+                        const bool wasOn = duty.on(iPulse);
                         state.pulseFile << iPulse << ", " << std::setprecision(15) << runTime << std::setprecision(6) << ", " << state.gas->temperature() << ", "
                                         << state.gas->pressure() << ", " << ne << ", " << state.neMaxPulse << ", "
-                                        << disEnergy << ", " << tau_NRP_vec[idx] << ", " << state.EpDischarge << "\n";
+                                        << disEnergy << ", " << (wasOn ? tau_NRP_vec[idx] : 0.0) << ", " << (wasOn ? state.EpDischarge : 0.0)
+                                        << ", " << wasOn << "\n";
                     }
                     state.neMaxPulse = ne;
                     iPulse += 1;
@@ -1716,7 +1767,13 @@ int main(int argc, char *argv[]) {
                         state.tInternal = runTime;
                         plasmaOn = false;
                     }
-                    if (plasmaOn) {
+                    if (plasmaOn && config.discharge && !duty.on(iPulse)) {
+                        // CRN_v8: period off of the duty cycle. No discharge, no switch to constant volume, step
+                        // counters kept (dT/dt tracked as between pulses); Ep not reset (offset): no CVODE restart
+                        if (g_verbose) std::cout << "\n**** Pulse period No. " << iPulse << " off (duty cycle) at runTime = " << runTime << " for reactor " << state.name << " ****\n";
+                        disEnergy = 0.0;
+                        state.EpOffset = state.odes->depositedPlasmaEnergy();
+                    } else if (plasmaOn) {
                         if (g_verbose) std::cout << "\n**** Start Pulse Loop No. " << iPulse << " at runTime = " << runTime << " for reactor " << state.name << " ****\n";
                         if (state.odes->heatLoss) {
                             state.odes->setConstPD(state.gas->pressure(), state.gas->density());
@@ -1725,6 +1782,7 @@ int main(int argc, char *argv[]) {
 
                         disEnergy = 0.0, dischargeOn = true;
                         state.odes->resetDepositedPlasmaEnergy();
+                        state.EpOffset = 0.0;
                         state.needsReinit = true; // Ep is part of the CVODE state vector
                         iStepInPulse = 0, iStepAfPulse = 0;
                         state.pulseEndFound = false;
