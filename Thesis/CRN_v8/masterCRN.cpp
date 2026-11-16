@@ -303,7 +303,8 @@ ReactorState createReactorState(
     state.odes->setConstPD(state.gas->pressure(), state.gas->density()); // Record pressure and density
 
     state.odes->nonThermal = readParameter<bool>(parameterPath, "nonThermal");
-    state.odes->heatLoss = readParameter<bool>(parameterPath, "heatLoss");
+    // heat loss model (radial conduction + isentropic expansion after the pulse) only in discharge reactors
+    state.odes->heatLoss = readParameter<bool>(parameterPath, "heatLoss") && config.discharge;
     if (state.odes->heatLoss) {
         auto C0 = readParameter<double>(parameterPath, "C0");
         state.odes->T0 = initialTemperature;
